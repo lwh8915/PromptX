@@ -33,6 +33,8 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
         createCategory,
         deleteCategory,
         isCategoriesLoading,
+        showFavoritesOnly,
+        setShowFavoritesOnly,
     } = usePromptStore();
 
     const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
@@ -357,8 +359,11 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
 
                     {/* 全部提示词 */}
                     <button
-                        onClick={() => setSelectedCategory(null)}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm mb-2 transition-all ${selectedCategoryId === null
+                        onClick={() => {
+                            setSelectedCategory(null);
+                            setShowFavoritesOnly(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm mb-1 transition-all ${selectedCategoryId === null && !showFavoritesOnly
                             ? 'bg-[var(--primary-500)]/10 text-[var(--primary-400)] border border-[var(--primary-500)]/30'
                             : 'text-[var(--text-secondary)] hover:bg-[var(--bg-glass)] hover:text-[var(--text-primary)]'
                             }`}
@@ -366,6 +371,23 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
                         <span className="flex items-center gap-2">
                             <span>📋</span>
                             <span>全部提示词</span>
+                        </span>
+                    </button>
+
+                    {/* 我的收藏 */}
+                    <button
+                        onClick={() => {
+                            setSelectedCategory(null);
+                            setShowFavoritesOnly(true);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm mb-2 transition-all ${showFavoritesOnly
+                            ? 'bg-[var(--primary-500)]/10 text-[var(--primary-400)] border border-[var(--primary-500)]/30'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-glass)] hover:text-[var(--text-primary)]'
+                            }`}
+                    >
+                        <span className="flex items-center gap-2">
+                            <span>⭐</span>
+                            <span>我的收藏</span>
                         </span>
                     </button>
 

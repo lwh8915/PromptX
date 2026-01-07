@@ -24,7 +24,7 @@ export default function Landing() {
 
                 <div className="flex items-center gap-4">
                     <a
-                        href="https://github.com"
+                        href="https://github.com/lwh8915/PromptX"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn btn-ghost text-sm"
@@ -89,7 +89,7 @@ export default function Landing() {
                 </div>
 
                 {/* 功能展示卡片 */}
-                <div id="features" className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-32">
+                <div id="features" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-32">
                     {[
                         {
                             icon: '📋',
@@ -99,7 +99,22 @@ export default function Landing() {
                         {
                             icon: '📁',
                             title: '智能分类',
-                            description: '支持多级分类和标签系统，让你的提示词井井有条。',
+                            description: '支持多级嵌套分类和标签系统，让你的提示词井井有条。',
+                        },
+                        {
+                            icon: '🔍',
+                            title: '全局搜索',
+                            description: '快速搜索标题、内容、描述，瞬间找到你需要的提示词。',
+                        },
+                        {
+                            icon: '🔐',
+                            title: '安全登录',
+                            description: '支持用户名或邮箱登录，安全问题验证找回密码。',
+                        },
+                        {
+                            icon: '📧',
+                            title: '邮箱验证',
+                            description: '忘记密码？通过邮箱验证码轻松重置，安全可靠。',
                         },
                         {
                             icon: '🔄',
@@ -132,6 +147,10 @@ export default function Landing() {
                         { icon: '🌙', label: '深色模式' },
                         { icon: '⚡', label: '极速响应' },
                         { icon: '🎨', label: '精美界面' },
+                        { icon: '⭐', label: '收藏功能' },
+                        { icon: '🏷️', label: '标签系统' },
+                        { icon: '📊', label: '卡片/列表视图' },
+                        { icon: '👁️', label: '提示词预览' },
                     ].map((item, index) => (
                         <div
                             key={index}
@@ -140,8 +159,7 @@ export default function Landing() {
                             <span className="text-2xl">{item.icon}</span>
                             <span className="text-sm text-[var(--text-secondary)]">{item.label}</span>
                         </div>
-                    ))}
-                </div>
+                    ))}                </div>
             </main>
 
             {/* 页脚 */}

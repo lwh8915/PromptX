@@ -1,0 +1,41 @@
+services:
+  # 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: promptx-backend
+    restart: unless-stopped
+    environment:
+      # MongoDB 配置（使用你的 MongoDB Atlas 连接串）
+      - MONGODB_URL=${MONGODB_URL}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-PromptX}
+      # JWT 会自动生成，无需配置
+      # SMTP 配置（可选，用于邮件重置密码）
+      - SMTP_HOST=${SMTP_HOST:-smtp.qq.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-Prompt Manager}
+    ports:
+      - "8000:8000"
+    networks:
+      - promptx-network
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: promptx-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - promptx-network
+
+networks:
+  promptx-network:
+    driver: bridge

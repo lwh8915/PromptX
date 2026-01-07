@@ -28,3 +28,8 @@ backend/.env
 backend/.coverage
 backend/htmlcov/
 backend/.pytest_cache/
+
+# Docker
+.env
+.env.docker
+

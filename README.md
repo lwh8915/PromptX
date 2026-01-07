@@ -114,6 +114,38 @@ SMTP_PASSWORD=16位授权码
 - 丰富微交互动画
 - 完美响应式布局
 
+## Docker 部署
+
+### 一键启动
+
+```bash
+# 1. 复制环境变量配置
+cp .env.docker.example .env
+
+# 2. 编辑 .env 填入你的 MongoDB 连接串（SMTP 可选）
+
+# 3. 构建并启动
+docker-compose up -d --build
+
+# 4. 查看日志
+docker-compose logs -f
+```
+
+访问: http://localhost
+
+### 停止服务
+
+```bash
+docker-compose down
+```
+
+### 更新部署
+
+```bash
+git pull
+docker-compose up -d --build
+```
+
 ## App 迁移准备
 
 本项目架构已为未来迁移做好准备：
