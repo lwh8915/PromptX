@@ -1,6 +1,27 @@
-# Prompt Manager
+<div align="center">
+  <img src="frontend/public/logo.png" alt="PromptX Logo" width="272" height="120" />
+  <h1>🚀 Prompt Manager (PromptX)</h1>
+  
+  <p align="center">
+    <strong>✨ 极致现代感 · 智能版本管理 · 跨平台同步</strong>
+  </p>
 
-> 🚀 AI 提示词管理工具 - 一键复制、智能分类、跨平台同步
+  <p align="center">
+    <a href="#核心功能">核心功能</a> •
+    <a href="#快速开始">快速开始</a> •
+    <a href="#docker-部署">Docker 部署</a> •
+    <a href="#技术栈">技术栈</a>
+  </p>
+
+  ![License](https://img.shields.io/badge/license-MIT-blue.svg)
+  ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
+  ![React](https://img.shields.io/badge/react-18-blue.svg)
+  ![Docker](https://img.shields.io/badge/docker-ready-green.svg)
+</div>
+
+<br />
+
+> **PromptX** 不仅仅是一个提示词存储工具，它是专为 AI 时代打造的生产力神器。采用 **UI/UX Pro Max** 设计标准，结合强大的 **版本管理** 和 **智能分类**，让你的 AI 工作流效率提升 10x。
 
 ## 项目架构
 
