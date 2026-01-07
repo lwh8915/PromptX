@@ -34,6 +34,8 @@ interface PromptState {
     setSearchQuery: (query: string) => void;
     setFilterTag: (tag: string | null) => void;
     setShowFavoritesOnly: (show: boolean) => void;
+    viewFavorites: () => void;
+    viewAll: () => void;
 
     // 分类 Actions
     createCategory: (name: string, parentId?: string) => Promise<Category>;
@@ -140,7 +142,14 @@ export const usePromptStore = create<PromptState>()((set, get) => ({
     },
 
     setSelectedCategory: (categoryId: string | null) => {
-        set({ selectedCategoryId: categoryId, currentPage: 1 });
+        // 切换分类时，重置其他筛选条件
+        set({
+            selectedCategoryId: categoryId,
+            currentPage: 1,
+            showFavoritesOnly: false,
+            filterTag: null,
+            // searchQuery: '' // 搜索词可视情况保留或重置，这里保留用户输入的搜索词体验可能更好
+        });
         get().fetchPrompts();
     },
 
@@ -155,6 +164,28 @@ export const usePromptStore = create<PromptState>()((set, get) => ({
 
     setShowFavoritesOnly: (show: boolean) => {
         set({ showFavoritesOnly: show, currentPage: 1 });
+        get().fetchPrompts();
+    },
+
+    // 专门用于切换到"我的收藏"视图
+    viewFavorites: () => {
+        set({
+            showFavoritesOnly: true,
+            selectedCategoryId: null,
+            filterTag: null,
+            currentPage: 1,
+        });
+        get().fetchPrompts();
+    },
+
+    // 专门用于切换到"全部提示词"视图
+    viewAll: () => {
+        set({
+            showFavoritesOnly: false,
+            selectedCategoryId: null,
+            filterTag: null,
+            currentPage: 1,
+        });
         get().fetchPrompts();
     },
 
