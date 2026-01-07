@@ -101,6 +101,10 @@ export const usePromptStore = create<PromptState>()((set, get) => ({
             prompts: [prompt, ...state.prompts],
             totalPrompts: state.totalPrompts + 1,
         }));
+        // 重新获取列表以确保数据一致性（解决新分类下首个提示词不显示的问题）
+        await get().fetchPrompts();
+        // 刷新分类列表以更新计数
+        get().fetchCategories();
         return prompt;
     },
 
@@ -109,6 +113,12 @@ export const usePromptStore = create<PromptState>()((set, get) => ({
         set((state) => ({
             prompts: state.prompts.map((p) => (p.id === id ? updated : p)),
         }));
+        // 刷新分类列表以更新计数（如果修改了分类）
+        get().fetchCategories();
+        // 如果修改了分类，当前列表可能不再包含该项，建议刷新列表
+        if (data.category_id !== undefined) {
+            get().fetchPrompts();
+        }
     },
 
     deletePrompt: async (id: string) => {
@@ -117,6 +127,9 @@ export const usePromptStore = create<PromptState>()((set, get) => ({
             prompts: state.prompts.filter((p) => p.id !== id),
             totalPrompts: state.totalPrompts - 1,
         }));
+        // 刷新列表和分类
+        await get().fetchPrompts();
+        get().fetchCategories();
     },
 
     copyPrompt: async (id: string) => {
