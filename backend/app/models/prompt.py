@@ -34,6 +34,8 @@ class PromptResponse(PromptBase):
     user_id: str
     category_name: Optional[str] = None  # 分类名称
     copy_count: int = 0  # 复制次数统计
+    current_version: int = 1  # 当前版本号
+    version_count: int = 1  # 总版本数
     created_at: datetime
     updated_at: datetime
     

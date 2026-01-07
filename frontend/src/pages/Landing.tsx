@@ -112,9 +112,9 @@ export default function Landing() {
                             description: '支持用户名或邮箱登录，安全问题验证找回密码。',
                         },
                         {
-                            icon: '📧',
-                            title: '邮箱验证',
-                            description: '忘记密码？通过邮箱验证码轻松重置，安全可靠。',
+                            icon: '⏱️',
+                            title: '版本管理',
+                            description: '自动保存历史版本，支持差异对比和一键恢复。',
                         },
                         {
                             icon: '🔄',

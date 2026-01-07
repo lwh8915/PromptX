@@ -77,8 +77,49 @@ export interface Prompt {
     is_favorite: boolean;
     user_id: string;
     copy_count: number;
+    current_version: number;  // 当前版本号
+    version_count: number;    // 总版本数
     created_at: string;
     updated_at: string;
+}
+
+// 版本相关类型
+export interface PromptVersion {
+    id: string;
+    prompt_id: string;
+    version: number;
+    title: string;
+    content: string;
+    description?: string;
+    tags: string[];
+    change_note?: string;
+    created_at: string;
+}
+
+export interface PromptVersionListResponse {
+    items: PromptVersion[];
+    total: number;
+}
+
+export interface DiffLine {
+    type: 'added' | 'removed' | 'unchanged';
+    content: string;
+    line_number_old?: number;
+    line_number_new?: number;
+}
+
+export interface PromptCompareResponse {
+    version_old: number;
+    version_new: number;
+    title_old: string;
+    title_new: string;
+    title_changed: boolean;
+    content_diff: DiffLine[];
+    tags_added: string[];
+    tags_removed: string[];
+    description_old?: string;
+    description_new?: string;
+    description_changed: boolean;
 }
 
 export interface PromptCreate {

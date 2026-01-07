@@ -5,6 +5,10 @@ from bson import ObjectId
 
 from ..models import PromptCreate, PromptUpdate, PromptResponse
 from ..models.prompt import PromptListResponse
+from ..models.prompt_version import (
+    PromptVersionResponse, PromptVersionListResponse, 
+    PromptCompareResponse, DiffLine
+)
 from ..database import get_collection
 from ..services.auth import get_current_user
 
@@ -24,6 +28,8 @@ def serialize_prompt(prompt: dict, category_name: str = None) -> PromptResponse:
         is_favorite=prompt.get("is_favorite", False),
         user_id=prompt["user_id"],
         copy_count=prompt.get("copy_count", 0),
+        current_version=prompt.get("current_version", 1),
+        version_count=prompt.get("version_count", 1),
         created_at=prompt["created_at"],
         updated_at=prompt["updated_at"]
     )
@@ -177,6 +183,8 @@ async def create_prompt(
         "is_favorite": prompt_data.is_favorite,
         "user_id": current_user["id"],
         "copy_count": 0,
+        "current_version": 1,
+        "version_count": 1,
         "created_at": now,
         "updated_at": now,
     }
@@ -193,9 +201,10 @@ async def update_prompt(
     prompt_data: PromptUpdate,
     current_user: dict = Depends(get_current_user)
 ):
-    """更新提示词"""
+    """更新提示词（自动保存历史版本）"""
     prompts_collection = get_collection("prompts")
     categories_collection = get_collection("categories")
+    versions_collection = get_collection("prompt_versions")
     
     # 验证提示词存在
     prompt = await prompts_collection.find_one({
@@ -208,8 +217,35 @@ async def update_prompt(
             detail="提示词不存在"
         )
     
-    # 更新字段
+    # 检查是否有实质性内容变更（标题、内容、描述、标签）
     update_data = {k: v for k, v in prompt_data.model_dump().items() if v is not None}
+    content_fields = {"title", "content", "description", "tags"}
+    has_content_change = any(
+        field in update_data and update_data[field] != prompt.get(field)
+        for field in content_fields
+    )
+    
+    # 如果有内容变更，保存当前版本到历史
+    if has_content_change:
+        current_version = prompt.get("current_version", 1)
+        
+        # 保存当前内容为历史版本
+        version_doc = {
+            "prompt_id": prompt_id,
+            "version": current_version,
+            "title": prompt["title"],
+            "content": prompt["content"],
+            "description": prompt.get("description"),
+            "tags": prompt.get("tags", []),
+            "user_id": current_user["id"],
+            "created_at": prompt.get("updated_at", prompt["created_at"]),
+        }
+        await versions_collection.insert_one(version_doc)
+        
+        # 更新版本号
+        update_data["current_version"] = current_version + 1
+        update_data["version_count"] = prompt.get("version_count", 1) + 1
+    
     update_data["updated_at"] = datetime.utcnow()
     
     await prompts_collection.update_one(
@@ -283,3 +319,302 @@ async def increment_copy_count(
             category_name = category["name"]
     
     return serialize_prompt(result, category_name)
+
+
+# ============ 版本管理 API ============
+
+def serialize_version(version: dict) -> PromptVersionResponse:
+    """序列化版本数据"""
+    return PromptVersionResponse(
+        id=str(version["_id"]),
+        prompt_id=version["prompt_id"],
+        version=version["version"],
+        title=version["title"],
+        content=version["content"],
+        description=version.get("description"),
+        tags=version.get("tags", []),
+        change_note=version.get("change_note"),
+        created_at=version["created_at"]
+    )
+
+
+@router.get("/{prompt_id}/versions", response_model=PromptVersionListResponse)
+async def get_versions(
+    prompt_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """获取提示词的版本历史"""
+    prompts_collection = get_collection("prompts")
+    versions_collection = get_collection("prompt_versions")
+    
+    # 验证提示词存在且属于当前用户
+    prompt = await prompts_collection.find_one({
+        "_id": ObjectId(prompt_id),
+        "user_id": current_user["id"]
+    })
+    if not prompt:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="提示词不存在"
+        )
+    
+    # 获取所有历史版本
+    cursor = versions_collection.find({
+        "prompt_id": prompt_id,
+        "user_id": current_user["id"]
+    }).sort("version", -1)
+    
+    versions = await cursor.to_list(length=100)
+    
+    # 添加当前版本作为最新版本（如果有历史版本的话）
+    current_version_doc = {
+        "_id": prompt["_id"],
+        "prompt_id": prompt_id,
+        "version": prompt.get("current_version", 1),
+        "title": prompt["title"],
+        "content": prompt["content"],
+        "description": prompt.get("description"),
+        "tags": prompt.get("tags", []),
+        "change_note": "当前版本",
+        "created_at": prompt["updated_at"]
+    }
+    
+    all_versions = [serialize_version(current_version_doc)] + [serialize_version(v) for v in versions]
+    
+
+    return PromptVersionListResponse(
+        items=all_versions,
+        total=len(all_versions)
+    )
+
+
+def compute_diff(old_text: str, new_text: str) -> List[DiffLine]:
+    """计算两段文本的差异"""
+    import difflib
+    
+    old_lines = old_text.splitlines(keepends=True)
+    new_lines = new_text.splitlines(keepends=True)
+    
+    diff_result = []
+    matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
+    
+    old_line_num = 1
+    new_line_num = 1
+    
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            for line in old_lines[i1:i2]:
+                diff_result.append(DiffLine(
+                    type="unchanged",
+                    content=line.rstrip('\n\r'),
+                    line_number_old=old_line_num,
+                    line_number_new=new_line_num
+                ))
+                old_line_num += 1
+                new_line_num += 1
+        elif tag == 'delete':
+            for line in old_lines[i1:i2]:
+                diff_result.append(DiffLine(
+                    type="removed",
+                    content=line.rstrip('\n\r'),
+                    line_number_old=old_line_num
+                ))
+                old_line_num += 1
+        elif tag == 'insert':
+            for line in new_lines[j1:j2]:
+                diff_result.append(DiffLine(
+                    type="added",
+                    content=line.rstrip('\n\r'),
+                    line_number_new=new_line_num
+                ))
+                new_line_num += 1
+        elif tag == 'replace':
+            for line in old_lines[i1:i2]:
+                diff_result.append(DiffLine(
+                    type="removed",
+                    content=line.rstrip('\n\r'),
+                    line_number_old=old_line_num
+                ))
+                old_line_num += 1
+            for line in new_lines[j1:j2]:
+                diff_result.append(DiffLine(
+                    type="added",
+                    content=line.rstrip('\n\r'),
+                    line_number_new=new_line_num
+                ))
+                new_line_num += 1
+    
+    return diff_result
+
+
+async def _get_version_content(prompt_id: str, version: int, current_user: dict) -> PromptVersionResponse:
+    """内部函数：获取特定版本的内容（供 compare 使用）"""
+    prompts_collection = get_collection("prompts")
+    versions_collection = get_collection("prompt_versions")
+    
+    # 验证提示词存在且属于当前用户
+    prompt = await prompts_collection.find_one({
+        "_id": ObjectId(prompt_id),
+        "user_id": current_user["id"]
+    })
+    if not prompt:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="提示词不存在"
+        )
+    
+    # 如果请求的是当前版本
+    if version == prompt.get("current_version", 1):
+        current_version_doc = {
+            "_id": prompt["_id"],
+            "prompt_id": prompt_id,
+            "version": version,
+            "title": prompt["title"],
+            "content": prompt["content"],
+            "description": prompt.get("description"),
+            "tags": prompt.get("tags", []),
+            "change_note": "当前版本",
+            "created_at": prompt["updated_at"]
+        }
+        return serialize_version(current_version_doc)
+    
+    # 查找历史版本
+    version_doc = await versions_collection.find_one({
+        "prompt_id": prompt_id,
+        "version": version,
+        "user_id": current_user["id"]
+    })
+    
+    if not version_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="版本不存在"
+        )
+    
+    return serialize_version(version_doc)
+
+
+@router.get("/{prompt_id}/versions/compare", response_model=PromptCompareResponse)
+async def compare_versions(
+    prompt_id: str,
+    v1: int = Query(..., description="旧版本号"),
+    v2: int = Query(..., description="新版本号"),
+    current_user: dict = Depends(get_current_user)
+):
+    """对比两个版本"""
+    # 获取两个版本的内容
+    version1 = await _get_version_content(prompt_id, v1, current_user)
+    version2 = await _get_version_content(prompt_id, v2, current_user)
+    
+    # 计算内容差异
+    content_diff = compute_diff(version1.content, version2.content)
+    
+    # 计算标签差异
+    tags1 = set(version1.tags)
+    tags2 = set(version2.tags)
+    
+    return PromptCompareResponse(
+        version_old=v1,
+        version_new=v2,
+        title_old=version1.title,
+        title_new=version2.title,
+        title_changed=version1.title != version2.title,
+        content_diff=content_diff,
+        tags_added=list(tags2 - tags1),
+        tags_removed=list(tags1 - tags2),
+        description_old=version1.description,
+        description_new=version2.description,
+        description_changed=version1.description != version2.description
+    )
+
+
+@router.get("/{prompt_id}/versions/{version}", response_model=PromptVersionResponse)
+async def get_version(
+    prompt_id: str,
+    version: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """获取特定版本的内容"""
+    return await _get_version_content(prompt_id, version, current_user)
+
+
+
+@router.post("/{prompt_id}/versions/{version}/restore", response_model=PromptResponse)
+async def restore_version(
+    prompt_id: str,
+    version: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """恢复到指定版本"""
+    prompts_collection = get_collection("prompts")
+    versions_collection = get_collection("prompt_versions")
+    categories_collection = get_collection("categories")
+    
+    # 验证提示词存在
+    prompt = await prompts_collection.find_one({
+        "_id": ObjectId(prompt_id),
+        "user_id": current_user["id"]
+    })
+    if not prompt:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="提示词不存在"
+        )
+    
+    # 获取目标版本
+    target_version = await versions_collection.find_one({
+        "prompt_id": prompt_id,
+        "version": version,
+        "user_id": current_user["id"]
+    })
+    
+    if not target_version:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="目标版本不存在"
+        )
+    
+    # 先保存当前内容为历史版本
+    current_version = prompt.get("current_version", 1)
+    version_doc = {
+        "prompt_id": prompt_id,
+        "version": current_version,
+        "title": prompt["title"],
+        "content": prompt["content"],
+        "description": prompt.get("description"),
+        "tags": prompt.get("tags", []),
+        "change_note": f"恢复前的版本（恢复到 v{version}）",
+        "user_id": current_user["id"],
+        "created_at": prompt.get("updated_at", prompt["created_at"]),
+    }
+    await versions_collection.insert_one(version_doc)
+    
+    # 恢复内容
+    now = datetime.utcnow()
+    await prompts_collection.update_one(
+        {"_id": ObjectId(prompt_id)},
+        {"$set": {
+            "title": target_version["title"],
+            "content": target_version["content"],
+            "description": target_version.get("description"),
+            "tags": target_version.get("tags", []),
+            "current_version": current_version + 1,
+            "version_count": prompt.get("version_count", 1) + 1,
+            "updated_at": now
+        }}
+    )
+    
+    # 获取更新后的提示词
+    updated_prompt = await prompts_collection.find_one({"_id": ObjectId(prompt_id)})
+    
+    # 获取分类名称
+    category_name = None
+    if updated_prompt.get("category_id"):
+        category = await categories_collection.find_one({
+            "_id": ObjectId(updated_prompt["category_id"])
+        })
+        if category:
+            category_name = category["name"]
+    
+    return serialize_prompt(updated_prompt, category_name)
+

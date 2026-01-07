@@ -24,7 +24,7 @@ interface PromptState {
     // Actions
     fetchPrompts: (params?: PromptQueryParams) => Promise<void>;
     fetchCategories: () => Promise<void>;
-    createPrompt: (data: Omit<Prompt, 'id' | 'user_id' | 'copy_count' | 'created_at' | 'updated_at'>) => Promise<Prompt>;
+    createPrompt: (data: Omit<Prompt, 'id' | 'user_id' | 'copy_count' | 'current_version' | 'version_count' | 'created_at' | 'updated_at'>) => Promise<Prompt>;
     updatePrompt: (id: string, data: Partial<Prompt>) => Promise<void>;
     deletePrompt: (id: string) => Promise<void>;
     copyPrompt: (id: string) => Promise<void>;

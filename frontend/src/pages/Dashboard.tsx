@@ -6,6 +6,8 @@ import Sidebar from '../components/layout/Sidebar';
 import PromptCard from '../components/shared/PromptCard';
 import PromptModal from '../components/shared/PromptModal';
 import PromptViewModal from '../components/shared/PromptViewModal';
+import VersionHistoryModal from '../components/shared/VersionHistoryModal';
+import VersionCompareModal from '../components/shared/VersionCompareModal';
 import Toast from '../components/ui/Toast';
 import type { Prompt } from '../types';
 
@@ -37,6 +39,10 @@ export default function Dashboard() {
     const [viewingPrompt, setViewingPrompt] = useState<Prompt | null>(null);  // 阅读弹窗
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [searchInput, setSearchInput] = useState('');
+
+    // 版本历史弹窗状态
+    const [versionHistoryPrompt, setVersionHistoryPrompt] = useState<Prompt | null>(null);
+    const [compareVersions, setCompareVersions] = useState<{ prompt: Prompt; v1: number; v2: number } | null>(null);
 
     // 视图模式：card 或 list，网页端默认 card，移动端默认 list
     const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -284,6 +290,7 @@ export default function Dashboard() {
                                         onCopy={() => handleCopy(prompt)}
                                         onEdit={() => handleEdit(prompt)}
                                         onDelete={() => handleDelete(prompt)}
+                                        onViewHistory={() => setVersionHistoryPrompt(prompt)}
                                         style={{ animationDelay: `${index * 50}ms` }}
                                     />
                                 ))}
@@ -299,6 +306,7 @@ export default function Dashboard() {
                                         onCopy={() => handleCopy(prompt)}
                                         onEdit={() => handleEdit(prompt)}
                                         onDelete={() => handleDelete(prompt)}
+                                        onViewHistory={() => setVersionHistoryPrompt(prompt)}
                                         style={{ animationDelay: `${index * 30}ms` }}
                                     />
                                 ))}
@@ -343,6 +351,32 @@ export default function Dashboard() {
                     onCopy={() => {
                         handleCopy(viewingPrompt);
                     }}
+                />
+            )}
+
+            {/* Version History Modal */}
+            {versionHistoryPrompt && (
+                <VersionHistoryModal
+                    prompt={versionHistoryPrompt}
+                    onClose={() => setVersionHistoryPrompt(null)}
+                    onRestore={(_updated) => {
+                        setVersionHistoryPrompt(null);
+                        fetchPrompts();
+                        setToast({ message: '版本恢复成功', type: 'success' });
+                    }}
+                    onCompare={(v1, v2) => {
+                        setCompareVersions({ prompt: versionHistoryPrompt, v1, v2 });
+                    }}
+                />
+            )}
+
+            {/* Version Compare Modal */}
+            {compareVersions && (
+                <VersionCompareModal
+                    prompt={compareVersions.prompt}
+                    version1={compareVersions.v1}
+                    version2={compareVersions.v2}
+                    onClose={() => setCompareVersions(null)}
                 />
             )}
         </div>

@@ -11,7 +11,10 @@ import type {
     PromptCreate,
     PromptUpdate,
     PromptListResponse,
-    PromptQueryParams
+    PromptQueryParams,
+    PromptVersion,
+    PromptVersionListResponse,
+    PromptCompareResponse
 } from '../types';
 
 // API 基础配置
@@ -158,6 +161,34 @@ export const promptApi = {
     // 增加复制次数
     incrementCopyCount: async (id: string): Promise<Prompt> => {
         const response = await api.post<Prompt>(`/prompts/${id}/copy`);
+        return response.data;
+    },
+
+    // ============ 版本管理 API ============
+
+    // 获取版本历史
+    getVersions: async (id: string): Promise<PromptVersionListResponse> => {
+        const response = await api.get<PromptVersionListResponse>(`/prompts/${id}/versions`);
+        return response.data;
+    },
+
+    // 获取特定版本
+    getVersion: async (id: string, version: number): Promise<PromptVersion> => {
+        const response = await api.get<PromptVersion>(`/prompts/${id}/versions/${version}`);
+        return response.data;
+    },
+
+    // 对比两个版本
+    compareVersions: async (id: string, v1: number, v2: number): Promise<PromptCompareResponse> => {
+        const response = await api.get<PromptCompareResponse>(`/prompts/${id}/versions/compare`, {
+            params: { v1, v2 }
+        });
+        return response.data;
+    },
+
+    // 恢复到指定版本
+    restoreVersion: async (id: string, version: number): Promise<Prompt> => {
+        const response = await api.post<Prompt>(`/prompts/${id}/versions/${version}/restore`);
         return response.data;
     },
 };
