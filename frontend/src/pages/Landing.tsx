@@ -92,9 +92,9 @@ export default function Landing() {
                 <div id="features" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-32">
                     {[
                         {
-                            icon: '📋',
-                            title: '一键复制',
-                            description: '点击即可复制提示词内容，省去繁琐操作，快速使用。',
+                            icon: '🏷️',
+                            title: '高级标签筛选',
+                            description: '采用多维标签智能聚合逻辑，支持精准过滤与组合筛选，轻松定位你的灵感片段。',
                         },
                         {
                             icon: '📁',
