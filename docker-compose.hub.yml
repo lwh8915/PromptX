@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # 后端服务
   backend:
-    image: lwh2460731039/promptx-backend:latest
+    image: dockerhub_username/promptx-backend:latest
     container_name: promptx-backend
     restart: unless-stopped
     environment:
@@ -24,7 +24,7 @@ services:
 
   # 前端服务
   frontend:
-    image: lwh2460731039/promptx-frontend:latest
+    image: dockerhub_username/promptx-frontend:latest
     container_name: promptx-frontend
     restart: unless-stopped
     ports:
@@ -44,9 +44,9 @@ services:
     environment:
       - WATCHTOWER_CLEANUP=true # 自动清理旧镜像
       - WATCHTOWER_HTTP_API_UPDATE=true # 开启 HTTP API
-      - WATCHTOWER_HTTP_API_TOKEN=lwh123456 # 根据用户要求设置
+      - WATCHTOWER_HTTP_API_TOKEN=自定义token # 根据用户要求设置
     ports:
-      - "3581:8080" # 外部端口3581 (避免与应用端口3580冲突) -> 容器端口8080
+      - "3581:8080" # 外部端口3581 -> 容器端口8080
     command: --active-deadline-sec 30 # 容器更新超时时间
 
 networks:
