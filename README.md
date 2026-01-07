@@ -116,19 +116,33 @@ SMTP_PASSWORD=16位授权码
 
 ## Docker 部署
 
-### 一键启动
+### 方式一：直接运行（推荐）
+
+无需下载源码，只需下载 `docker-compose.hub.yml` 和配置文件。
+
+1. 下载配置文件：
+   - [docker-compose.hub.yml](./docker-compose.hub.yml)
+   - [.env.docker.example](./.env.docker.example) (重命名为 `.env`)
+
+2. 编辑 `.env` 文件，填入你的 MongoDB 连接串。
+
+3. 启动（指定配置文件）：
+```bash
+docker-compose -f docker-compose.hub.yml up -d
+```
+
+### 方式二：源码构建
+
+如果你想自己修改代码并构建：
 
 ```bash
 # 1. 复制环境变量配置
 cp .env.docker.example .env
 
-# 2. 编辑 .env 填入你的 MongoDB 连接串（SMTP 可选）
+# 2. 编辑 .env 填入你的 MongoDB 连接串
 
 # 3. 构建并启动
 docker-compose up -d --build
-
-# 4. 查看日志
-docker-compose logs -f
 ```
 
 访问: http://localhost

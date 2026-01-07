@@ -1,0 +1,23 @@
+# 忽略 Git 目录
+.git
+.gitignore
+
+# 忽略环境变量文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 忽略依赖和构建产物
+node_modules
+dist
+dist-ssr
+coverage
+
+# 忽略 IDE 配置
+.idea
+.vscode
+
+# 忽略日志
+*.log

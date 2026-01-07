@@ -1,0 +1,24 @@
+# 忽略 Git 目录
+.git
+.gitignore
+
+# 忽略环境变量文件 (关键安全配置)
+.env
+.env.*
+!.env.example
+!.env.docker.example
+
+# 忽略 Python 缓存
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# 忽略虚拟环境
+venv
+env
+.venv
+
+# 忽略 IDE 配置
+.idea
+.vscode
