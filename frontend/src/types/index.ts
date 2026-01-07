@@ -152,6 +152,7 @@ export interface PromptQueryParams {
     category_id?: string;
     search?: string;
     tag?: string;
+    tags?: string[]; // 支持多标签筛选
     is_favorite?: boolean;
     page?: number;
     page_size?: number;

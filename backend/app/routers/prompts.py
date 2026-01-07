@@ -35,11 +35,28 @@ def serialize_prompt(prompt: dict, category_name: str = None) -> PromptResponse:
     )
 
 
+@router.get("/tags", response_model=List[str])
+async def get_tags(current_user: dict = Depends(get_current_user)):
+    """获取所有已使用的标签"""
+    prompts_collection = get_collection("prompts")
+    
+    pipeline = [
+        {"$match": {"user_id": current_user["id"]}},
+        {"$unwind": "$tags"},
+        {"$group": {"_id": "$tags"}},
+        {"$sort": {"_id": 1}}
+    ]
+    
+    result = await prompts_collection.aggregate(pipeline).to_list(length=None)
+    return [item["_id"] for item in result]
+
+
 @router.get("", response_model=PromptListResponse)
 async def get_prompts(
     category_id: Optional[str] = Query(None, description="分类ID"),
     search: Optional[str] = Query(None, description="搜索关键词"),
-    tag: Optional[str] = Query(None, description="标签过滤"),
+    tags: Optional[List[str]] = Query(None, alias="tags", description="标签过滤"),  # 支持多标签
+    tag: Optional[str] = Query(None, description="兼容旧版标签参数"),               # 兼容旧参数
     is_favorite: Optional[bool] = Query(None, description="收藏过滤"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
@@ -76,7 +93,12 @@ async def get_prompts(
     if is_favorite is not None:
         query["is_favorite"] = is_favorite
     
-    if tag:
+    # 标签过滤逻辑
+    # 如果传了 tags (列表)，则使用 $all 查询 (包含所有选中的标签)
+    if tags:
+        query["tags"] = {"$all": tags}
+    # 兼容旧版单一 tag 参数
+    elif tag:
         query["tags"] = tag
     
     if search:

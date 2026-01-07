@@ -31,7 +31,18 @@ export default function Dashboard() {
         copyPrompt,
         deletePrompt,
         selectedCategoryId,
+        setPage,
+        pageSize,
+        totalPrompts,
+        currentPage,
+        // Tags
+        availableTags,
+        selectedTags,
+        setSelectedTags,
+        fetchTags
     } = usePromptStore();
+
+    const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,8 +83,9 @@ export default function Dashboard() {
         if (isAuthenticated) {
             fetchCategories();
             fetchPrompts();
+            fetchTags(); // 加载可用标签
         }
-    }, [isAuthenticated, fetchCategories, fetchPrompts]);
+    }, [isAuthenticated, fetchCategories, fetchPrompts, fetchTags]);
 
     // 搜索防抖
     useEffect(() => {
@@ -178,6 +190,73 @@ export default function Dashboard() {
                                     className="input w-80 bg-[var(--bg-secondary)]"
                                     style={{ paddingLeft: '2.5rem' }}
                                 />
+                            </div>
+
+                            {/* 标签筛选下拉框 */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
+                                    className={`btn btn-ghost px-3 py-2 flex items-center gap-2 border rounded-lg transition-all ${selectedTags.length > 0
+                                            ? 'border-[var(--primary-500)] bg-[var(--primary-500)]/10 text-[var(--primary-400)]'
+                                            : 'border-[var(--border-secondary)] text-[var(--text-secondary)] hover:border-[var(--border-primary)]'
+                                        }`}
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                    </svg>
+                                    <span className="text-sm">
+                                        {selectedTags.length > 0 ? `已选 ${selectedTags.length} 个标签` : '标签筛选'}
+                                    </span>
+                                    <svg className={`w-4 h-4 transition-transform ${isTagDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                {/* 下拉列表 */}
+                                {isTagDropdownOpen && (
+                                    <div
+                                        className="absolute top-full left-0 mt-2 w-64 max-h-80 overflow-y-auto glass-card p-2 z-50 animate-slideDown"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {availableTags.length === 0 ? (
+                                            <div className="text-sm text-[var(--text-tertiary)] text-center py-4">
+                                                暂无可用标签
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {/* 清空按钮 */}
+                                                {selectedTags.length > 0 && (
+                                                    <button
+                                                        onClick={() => setSelectedTags([])}
+                                                        className="w-full text-left px-3 py-2 text-xs text-[var(--text-tertiary)] hover:text-red-400 transition-colors mb-1"
+                                                    >
+                                                        ✕ 清除所有筛选
+                                                    </button>
+                                                )}
+                                                {availableTags.map(tag => (
+                                                    <label
+                                                        key={tag}
+                                                        className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-glass)] cursor-pointer transition-colors"
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedTags.includes(tag)}
+                                                            onChange={() => {
+                                                                if (selectedTags.includes(tag)) {
+                                                                    setSelectedTags(selectedTags.filter(t => t !== tag));
+                                                                } else {
+                                                                    setSelectedTags([...selectedTags, tag]);
+                                                                }
+                                                            }}
+                                                            className="w-4 h-4 rounded border-[var(--border-primary)] bg-[var(--bg-tertiary)] text-[var(--primary-500)]"
+                                                        />
+                                                        <span className="text-sm text-[var(--text-primary)]">{tag}</span>
+                                                    </label>
+                                                ))}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -314,71 +393,136 @@ export default function Dashboard() {
                         )
                     )}
                 </div>
-            </main>
+
+                {/* 分页组件 */}
+                {
+                    totalPrompts > pageSize && (
+                        <div className="flex justify-center items-center gap-2 mt-8 pb-8 animate-fadeIn">
+                            <button
+                                onClick={() => setPage(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="btn btn-ghost p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--bg-secondary)] transition-all"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+
+                            <div className="flex items-center gap-1">
+                                {Array.from({ length: Math.ceil(totalPrompts / pageSize) }, (_, i) => i + 1)
+                                    .filter(page => {
+                                        // 简单的智能分页显示逻辑：显示首尾页、当前页及其前后页
+                                        return page === 1 ||
+                                            page === Math.ceil(totalPrompts / pageSize) ||
+                                            Math.abs(page - currentPage) <= 1;
+                                    })
+                                    .map((page, index, array) => {
+                                        // 如果页码不连续，显示省略号
+                                        const showEllipsis = index > 0 && page - array[index - 1] > 1;
+                                        return (
+                                            <div key={page} className="flex items-center">
+                                                {showEllipsis && <span className="mx-2 text-[var(--text-tertiary)]">...</span>}
+                                                <button
+                                                    onClick={() => setPage(page)}
+                                                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${currentPage === page
+                                                        ? 'bg-[var(--primary-500)] text-white shadow-lg shadow-[var(--primary-500)]/20'
+                                                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]'
+                                                        }`}
+                                                >
+                                                    {page}
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+
+                            <button
+                                onClick={() => setPage(currentPage + 1)}
+                                disabled={currentPage >= Math.ceil(totalPrompts / pageSize)}
+                                className="btn btn-ghost p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--bg-secondary)] transition-all"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    )
+                }
+            </main >
 
             {/* Prompt Modal */}
-            {isModalOpen && (
-                <PromptModal
-                    prompt={editingPrompt}
-                    defaultCategoryId={editingPrompt ? undefined : selectedCategoryId}
-                    onClose={handleModalClose}
-                    onSuccess={() => {
-                        handleModalClose();
-                        fetchPrompts();
-                        setToast({ message: editingPrompt ? '更新成功' : '创建成功', type: 'success' });
-                    }}
-                />
-            )}
+            {
+                isModalOpen && (
+                    <PromptModal
+                        prompt={editingPrompt}
+                        defaultCategoryId={editingPrompt ? undefined : selectedCategoryId}
+                        onClose={handleModalClose}
+                        onSuccess={() => {
+                            handleModalClose();
+                            fetchPrompts();
+                            setToast({ message: editingPrompt ? '更新成功' : '创建成功', type: 'success' });
+                        }}
+                    />
+                )
+            }
 
             {/* Toast */}
-            {toast && (
-                <Toast
-                    message={toast.message}
-                    type={toast.type}
-                    onClose={() => setToast(null)}
-                />
-            )}
+            {
+                toast && (
+                    <Toast
+                        message={toast.message}
+                        type={toast.type}
+                        onClose={() => setToast(null)}
+                    />
+                )
+            }
 
             {/* Prompt View Modal */}
-            {viewingPrompt && (
-                <PromptViewModal
-                    prompt={viewingPrompt}
-                    onClose={() => setViewingPrompt(null)}
-                    onEdit={() => {
-                        setViewingPrompt(null);
-                        handleEdit(viewingPrompt);
-                    }}
-                    onCopy={() => {
-                        handleCopy(viewingPrompt);
-                    }}
-                />
-            )}
+            {
+                viewingPrompt && (
+                    <PromptViewModal
+                        prompt={viewingPrompt}
+                        onClose={() => setViewingPrompt(null)}
+                        onEdit={() => {
+                            setViewingPrompt(null);
+                            handleEdit(viewingPrompt);
+                        }}
+                        onCopy={() => {
+                            handleCopy(viewingPrompt);
+                        }}
+                    />
+                )
+            }
 
             {/* Version History Modal */}
-            {versionHistoryPrompt && (
-                <VersionHistoryModal
-                    prompt={versionHistoryPrompt}
-                    onClose={() => setVersionHistoryPrompt(null)}
-                    onRestore={(_updated) => {
-                        setVersionHistoryPrompt(null);
-                        fetchPrompts();
-                        setToast({ message: '版本恢复成功', type: 'success' });
-                    }}
-                    onCompare={(v1, v2) => {
-                        setCompareVersions({ prompt: versionHistoryPrompt, v1, v2 });
-                    }}
-                />
-            )}
+            {
+                versionHistoryPrompt && (
+                    <VersionHistoryModal
+                        prompt={versionHistoryPrompt}
+                        onClose={() => setVersionHistoryPrompt(null)}
+                        onRestore={(_updated) => {
+                            setVersionHistoryPrompt(null);
+                            fetchPrompts();
+                            setToast({ message: '版本恢复成功', type: 'success' });
+                        }}
+                        onCompare={(v1, v2) => {
+                            setCompareVersions({ prompt: versionHistoryPrompt, v1, v2 });
+                        }}
+                    />
+                )
+            }
 
             {/* Version Compare Modal */}
-            {compareVersions && (
-                <VersionCompareModal
-                    prompt={compareVersions.prompt}
-                    version1={compareVersions.v1}
-                    version2={compareVersions.v2}
-                    onClose={() => setCompareVersions(null)}
-                />
-            )}
-        </div>
+            {
+                compareVersions && (
+                    <VersionCompareModal
+                        prompt={compareVersions.prompt}
+                        version1={compareVersions.v1}
+                        version2={compareVersions.v2}
+                        onClose={() => setCompareVersions(null)}
+                    />
+                )
+            }
+        </div >
     );
 }

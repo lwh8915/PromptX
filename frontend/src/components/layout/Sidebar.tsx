@@ -41,9 +41,25 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
 
     const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
 
+
     // 新建分类状态
     const [addingCategoryParentId, setAddingCategoryParentId] = useState<string>('');
     const [newCategoryName, setNewCategoryName] = useState('');
+
+    // 展开/收起状态 (存储展开的 category.id)
+    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+    // 切换分类展开状态
+    const toggleCategory = (categoryId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const newExpanded = new Set(expandedCategories);
+        if (newExpanded.has(categoryId)) {
+            newExpanded.delete(categoryId);
+        } else {
+            newExpanded.add(categoryId);
+        }
+        setExpandedCategories(newExpanded);
+    };
 
     // 右键菜单
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; category: Category } | null>(null);
@@ -187,6 +203,9 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
 
     // 渲染分类项（递归支持子分类）
     const renderCategoryItem = (category: Category, depth = 0) => {
+        const hasChildren = category.children && category.children.length > 0;
+        const isExpanded = expandedCategories.has(category.id);
+
         return (
             <div key={category.id}>
                 <div
@@ -195,11 +214,30 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
                         : 'hover:bg-[var(--bg-glass)]'
                         }`}
                     style={{ marginLeft: `${depth * 12}px` }}
+                // 当点击整个行时，如果只是选择分类，不应该触发展开；
+                // 用户习惯可能是点击左侧箭头展开，点击文字选择。
+                // 但这里为了方便，我们只用专门的按钮来展开/收起，或者点击箭头区域。
                 >
+                    {/* 展开/收起箭头 (仅当有子分类或 depth=0(可选) 时显示，这里只针对有子分类显示) */}
+                    <button
+                        onClick={(e) => toggleCategory(category.id, e)}
+                        className={`p-1 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] transition-colors ${hasChildren ? 'visible' : 'invisible'
+                            }`}
+                    >
+                        <svg
+                            className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+
                     <button
                         onClick={() => setSelectedCategory(category.id === selectedCategoryId ? null : category.id)}
                         onContextMenu={(e) => handleContextMenu(e, category)}
-                        className={`flex-1 flex items-center justify-between px-3 py-2 text-sm ${selectedCategoryId === category.id
+                        className={`flex-1 flex items-center justify-between py-2 text-sm ${selectedCategoryId === category.id
                             ? 'text-[var(--primary-400)]'
                             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                             }`}
@@ -208,7 +246,7 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
                             <span>{category.icon || '📁'}</span>
                             <span>{category.name}</span>
                         </span>
-                        <span className="text-xs text-[var(--text-tertiary)]">
+                        <span className="text-xs text-[var(--text-tertiary)] px-2">
                             {category.prompt_count}
                         </span>
                     </button>
@@ -217,6 +255,12 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
+                            // 添加子分类时自动展开
+                            if (!expandedCategories.has(category.id)) {
+                                const newExpanded = new Set(expandedCategories);
+                                newExpanded.add(category.id);
+                                setExpandedCategories(newExpanded);
+                            }
                             startAddCategory(category.id);
                         }}
                         className="p-1.5 mr-1 text-[var(--text-tertiary)] hover:text-[var(--primary-400)] opacity-0 group-hover:opacity-100 transition-all"
@@ -242,11 +286,16 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
                     </button>
                 </div>
 
-                {/* 添加子分类输入框 */}
-                {renderAddCategoryInput(category.id, depth + 1)}
-
-                {/* 渲染子分类 */}
-                {category.children.map(child => renderCategoryItem(child, depth + 1))}
+                {/* 添加子分类输入框 (只有展开时或者正在添加时才显示) */}
+                {/* 这里的逻辑：如果正在添加子分类，应该显示输入框。输入框显示位置通常在子列表顶部。
+                    如果不展开，是否显示？通常添加时应该自动展开。我在上面添加按钮里做了自动展开。
+                */}
+                <div className={`transition-[grid-template-rows] duration-200 grid ${isExpanded || addingCategoryParentId === category.id ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                    <div className="overflow-hidden">
+                        {renderAddCategoryInput(category.id, depth + 1)}
+                        {category.children.map(child => renderCategoryItem(child, depth + 1))}
+                    </div>
+                </div>
             </div>
         );
     };

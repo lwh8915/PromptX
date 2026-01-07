@@ -13,7 +13,10 @@ interface PromptState {
     // 筛选状态
     selectedCategoryId: string | null;
     searchQuery: string;
-    filterTag: string | null;
+    // filterTag: string | null; // Deprecated, use selectedTags
+    filterTag: string | null; // Keep for backward compatibility if needed, but UI controls selectedTags
+    selectedTags: string[];   // New: Multi-tag selection
+    availableTags: string[];  // New: All available tags from backend
     showFavoritesOnly: boolean;
 
     // 加载状态
@@ -24,6 +27,7 @@ interface PromptState {
     // Actions
     fetchPrompts: (params?: PromptQueryParams) => Promise<void>;
     fetchCategories: () => Promise<void>;
+    fetchTags: () => Promise<void>; // New action
     createPrompt: (data: Omit<Prompt, 'id' | 'user_id' | 'copy_count' | 'current_version' | 'version_count' | 'created_at' | 'updated_at'>) => Promise<Prompt>;
     updatePrompt: (id: string, data: Partial<Prompt>) => Promise<void>;
     deletePrompt: (id: string) => Promise<void>;
@@ -33,9 +37,13 @@ interface PromptState {
     setSelectedCategory: (categoryId: string | null) => void;
     setSearchQuery: (query: string) => void;
     setFilterTag: (tag: string | null) => void;
+    setSelectedTags: (tags: string[]) => void; // New action
     setShowFavoritesOnly: (show: boolean) => void;
     viewFavorites: () => void;
     viewAll: () => void;
+
+    // 分页 Actions
+    setPage: (page: number) => void;
 
     // 分类 Actions
     createCategory: (name: string, parentId?: string) => Promise<Category>;
@@ -55,11 +63,19 @@ export const usePromptStore = create<PromptState>()((set, get) => ({
     selectedCategoryId: null,
     searchQuery: '',
     filterTag: null,
+    selectedTags: [],
+    availableTags: [],
     showFavoritesOnly: false,
 
     isLoading: false,
     isCategoriesLoading: false,
     error: null,
+
+    // 分页设置
+    setPage: (page: number) => {
+        set({ currentPage: page });
+        get().fetchPrompts({ page });
+    },
 
     fetchPrompts: async (params?: PromptQueryParams) => {
         set({ isLoading: true, error: null });
@@ -68,7 +84,9 @@ export const usePromptStore = create<PromptState>()((set, get) => ({
             const queryParams: PromptQueryParams = {
                 category_id: params?.category_id ?? state.selectedCategoryId ?? undefined,
                 search: params?.search ?? (state.searchQuery || undefined),
-                tag: params?.tag ?? state.filterTag ?? undefined,
+                // 兼容多标签筛选：如果有 selectedTags 则使用 tags 数组，否则使用单标签 filterTag
+                tags: state.selectedTags.length > 0 ? state.selectedTags : undefined,
+                tag: state.selectedTags.length === 0 && state.filterTag ? state.filterTag : undefined,
                 is_favorite: params?.is_favorite ?? (state.showFavoritesOnly ? true : undefined),
                 page: params?.page ?? state.currentPage,
                 page_size: params?.page_size ?? state.pageSize,
@@ -97,6 +115,15 @@ export const usePromptStore = create<PromptState>()((set, get) => ({
         }
     },
 
+    fetchTags: async () => {
+        try {
+            const tags = await promptApi.getTags();
+            set({ availableTags: tags });
+        } catch (error: any) {
+            console.error('Failed to fetch tags:', error);
+        }
+    },
+
     createPrompt: async (data) => {
         const prompt = await promptApi.create(data);
         set((state) => ({
@@ -107,6 +134,8 @@ export const usePromptStore = create<PromptState>()((set, get) => ({
         await get().fetchPrompts();
         // 刷新分类列表以更新计数
         get().fetchCategories();
+        // 刷新标签列表以更新可用标签
+        get().fetchTags();
         return prompt;
     },
 
@@ -158,8 +187,13 @@ export const usePromptStore = create<PromptState>()((set, get) => ({
     },
 
     setFilterTag: (tag: string | null) => {
-        set({ filterTag: tag, currentPage: 1 });
-        get().fetchPrompts();
+        set({ filterTag: tag, selectedTags: tag ? [tag] : [], currentPage: 1 }); // Sync legacy
+        get().fetchPrompts({ page: 1 });
+    },
+
+    setSelectedTags: (tags: string[]) => {
+        set({ selectedTags: tags, filterTag: tags.length > 0 ? tags[0] : null, currentPage: 1 }); // Sync legacy
+        get().fetchPrompts({ page: 1 });
     },
 
     setShowFavoritesOnly: (show: boolean) => {

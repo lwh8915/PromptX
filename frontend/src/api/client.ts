@@ -26,6 +26,10 @@ const api: AxiosInstance = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    // FastAPI expects array params as ?tags=a&tags=b, not ?tags[0]=a&tags[1]=b
+    paramsSerializer: {
+        indexes: null // This makes axios serialize arrays without indexes
+    }
 });
 
 // 请求拦截器 - 添加 Token
@@ -132,6 +136,12 @@ export const promptApi = {
     // 获取提示词列表
     getAll: async (params?: PromptQueryParams): Promise<PromptListResponse> => {
         const response = await api.get<PromptListResponse>('/prompts', { params });
+        return response.data;
+    },
+
+    // 获取所有标签
+    getTags: async (): Promise<string[]> => {
+        const response = await api.get<string[]>('/prompts/tags');
         return response.data;
     },
 
