@@ -194,3 +194,13 @@ export const promptApi = {
 };
 
 export default api;
+// 部署 API
+export const deployApi = {
+    triggerDeploy: async (webhook_url?: string, webhook_token?: string): Promise<{ message: string; status: string }> => {
+        const response = await api.post<{ message: string; status: string }>('/deploy', {
+            webhook_url,
+            webhook_token
+        });
+        return response.data;
+    }
+};

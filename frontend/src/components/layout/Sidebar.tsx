@@ -428,27 +428,74 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
                             </svg>
                         </button>
                     </div>
-                </div>
-            </aside>
-
-            {/* Context Menu */}
-            {contextMenu && (
-                <div
-                    className="fixed z-50 glass-card p-2 min-w-[140px] animate-scaleIn"
-                    style={{ left: contextMenu.x, top: contextMenu.y }}
-                    onClick={(e) => e.stopPropagation()}
-                >
+                    {/* 一键发布按钮 (仅在开发环境显示，这里为了演示默认显示) */}
                     <button
-                        onClick={() => handleDeleteCategory(contextMenu.category)}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                        onClick={async (e) => {
+                            // 1. 获取/设置 Webhook 配置
+                            let webhookUrl = localStorage.getItem('deploy_webhook_url');
+                            let webhookToken = localStorage.getItem('deploy_webhook_token');
+
+                            // 如果没有配置，或者按住 Shift 点击（强制配置），则弹出输入框
+                            // 注意：React 中这里最好用 Modal，但为了不破坏现有结构，暂时用 prompt
+                            // 更好的方式是像 Task 建议的那样，添加一个小的设置弹窗。
+                            // 但用户要求"点击发布更新在部署机器那边也能直接拉取"，所以这里简化流程，首次询问即可。
+
+                            if (!webhookUrl || e.shiftKey) {
+                                const url = prompt('请输入服务器 Watchtower Webhook URL (例如 http://your-server:8080/v1/update):\n(留空则仅进行 Docker Hub 推送)', webhookUrl || '');
+                                if (url === null) return; // 取消
+                                webhookUrl = url;
+                                localStorage.setItem('deploy_webhook_url', url);
+
+                                if (url) {
+                                    const token = prompt('请输入 Watchtower Token (可选):', webhookToken || '');
+                                    if (token === null) return;
+                                    webhookToken = token;
+                                    localStorage.setItem('deploy_webhook_token', token);
+                                }
+                            }
+
+                            if (!confirm(`确定要构建并推送新镜像到 Docker Hub 吗？\n${webhookUrl ? `并触发服务器更新 (${webhookUrl})` : '(仅推送，不触发服务器更新)'}`)) return;
+
+                            try {
+                                alert('🚀 部署任务已启动，请留意后台日志或等待片刻。\n(前端页面稍后可能会重新加载)');
+                                const { deployApi } = await import('../../api/client');
+                                await deployApi.triggerDeploy(webhookUrl || undefined, webhookToken || undefined);
+                            } catch (error) {
+                                console.error('Deploy failed:', error);
+                                alert('❌ 部署启动失败，请检查控制台。');
+                            }
+                        }}
+                        className="w-full mt-3 btn btn-ghost text-xs text-[var(--text-secondary)] hover:text-[var(--primary-400)] flex items-center justify-center gap-2 border border-dashed border-[var(--border-secondary)] hover:border-[var(--primary-500)] py-2 rounded-lg transition-all"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                         </svg>
-                        删除分类
+                        发布更新
                     </button>
                 </div>
-            )}
+
+            </aside >
+
+            {/* Context Menu */}
+            {
+                contextMenu && (
+                    <div
+                        className="fixed z-50 glass-card p-2 min-w-[140px] animate-scaleIn"
+                        style={{ left: contextMenu.x, top: contextMenu.y }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => handleDeleteCategory(contextMenu.category)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            删除分类
+                        </button>
+                    </div>
+                )
+            }
         </>
     );
 }

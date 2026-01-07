@@ -17,6 +17,9 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM_NAME=${SMTP_FROM_NAME:-Prompt Manager}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # 允许访问宿主机 Docker
+      - .:/workspace # 挂载项目根目录以便构建
     ports:
       - "8000:8000"
     networks:
