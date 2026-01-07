@@ -1,0 +1,30 @@
+# General
+.DS_Store
+.idea/
+.vscode/
+*.log
+*.swp
+*.swo
+
+# Frontend (Node.js/React)
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Backend (Python/FastAPI)
+backend/__pycache__/
+backend/*.pyc
+backend/*.pyo
+backend/*.pyd
+backend/.Python
+backend/env/
+backend/venv/
+backend/ENV/
+backend/.env
+backend/.coverage
+backend/htmlcov/
+backend/.pytest_cache/

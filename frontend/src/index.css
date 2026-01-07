@@ -1,0 +1,368 @@
+@import "tailwindcss";
+
+/* ========================================
+   UI UX Pro Max Design System
+   极致现代感、高审美、丰富微交互
+======================================== */
+
+/* 自定义 CSS 变量 - 配色方案 */
+:root {
+  /* 主色调 - 渐变紫蓝 */
+  --primary-50: #f0f5ff;
+  --primary-100: #e0eaff;
+  --primary-200: #c7d9ff;
+  --primary-300: #a3c0ff;
+  --primary-400: #7a9dff;
+  --primary-500: #5b7cfa;
+  --primary-600: #4c5df0;
+  --primary-700: #4149dc;
+  --primary-800: #363db2;
+  --primary-900: #31388c;
+  
+  /* 强调色 - 活力紫 */
+  --accent-400: #c084fc;
+  --accent-500: #a855f7;
+  --accent-600: #9333ea;
+  
+  /* 背景色 - 深色玻璃质感 */
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #111118;
+  --bg-tertiary: #1a1a24;
+  --bg-card: rgba(26, 26, 36, 0.8);
+  --bg-glass: rgba(255, 255, 255, 0.03);
+  
+  /* 文字颜色 */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  
+  /* 边框颜色 */
+  --border-primary: rgba(255, 255, 255, 0.08);
+  --border-secondary: rgba(255, 255, 255, 0.04);
+  --border-glow: rgba(91, 124, 250, 0.3);
+  
+  /* 阴影 */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 30px rgba(91, 124, 250, 0.15);
+  
+  /* 渐变 */
+  --gradient-primary: linear-gradient(135deg, var(--primary-500) 0%, var(--accent-500) 100%);
+  --gradient-hero: linear-gradient(180deg, rgba(91, 124, 250, 0.1) 0%, transparent 50%);
+  --gradient-card: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+  
+  /* 动画时间 */
+  --transition-fast: 150ms;
+  --transition-normal: 250ms;
+  --transition-slow: 400ms;
+}
+
+/* 基础样式重置 */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* 链接样式 */
+a {
+  color: var(--primary-400);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--primary-300);
+}
+
+/* ========================================
+   玻璃态卡片组件
+======================================== */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-primary);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal) ease;
+}
+
+.glass-card:hover {
+  border-color: var(--border-glow);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-2px);
+}
+
+/* ========================================
+   按钮样式
+======================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary {
+  background: var(--gradient-primary);
+  color: white;
+  box-shadow: 0 4px 14px rgba(91, 124, 250, 0.4);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(91, 124, 250, 0.5);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: var(--bg-glass);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-glow);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ========================================
+   输入框样式
+======================================== */
+.input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.input:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(91, 124, 250, 0.15);
+}
+
+/* ========================================
+   滚动条样式
+======================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* ========================================
+   动画关键帧
+======================================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(91, 124, 250, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(91, 124, 250, 0.5);
+  }
+}
+
+/* 动画工具类 */
+.animate-fadeIn {
+  animation: fadeIn var(--transition-normal) ease forwards;
+}
+
+.animate-slideUp {
+  animation: slideUp var(--transition-slow) ease forwards;
+}
+
+.animate-slideDown {
+  animation: slideDown var(--transition-slow) ease forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn var(--transition-normal) ease forwards;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* ========================================
+   Toast 通知样式
+======================================== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 9999;
+  animation: slideUp var(--transition-normal) ease;
+}
+
+.toast-success {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, var(--bg-card) 100%);
+}
+
+.toast-error {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, var(--bg-card) 100%);
+}
+
+/* ========================================
+   响应式布局工具
+======================================== */
+@media (max-width: 768px) {
+  :root {
+    font-size: 14px;
+  }
+  
+  .btn {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+}
