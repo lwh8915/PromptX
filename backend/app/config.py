@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from_name: str = "Prompt Manager"
     
+    # LLM API 配置 (用于 AI 提示词修改功能)
+    llm_base_url: str = ""
+    llm_api_key: str = ""
+    llm_model: str = "gemini-3-pro"
+    
     # CORS 配置 - 为 App 迁移准备，允许所有来源
     cors_origins: list[str] = [
         "http://localhost:3000",

@@ -1,20 +1,31 @@
+import { useState } from 'react';
 import type { Prompt } from '../../types';
+import AIModifyModal from './AIModifyModal';
 
 interface PromptViewModalProps {
     prompt: Prompt;
     onClose: () => void;
     onEdit: () => void;
     onCopy: () => void;
+    onContentModified?: (newContent: string) => void; // AI 修改后的回调
 }
 
 /**
  * PromptViewModal - 提示词阅读弹窗
  * 用于查看提示词的完整内容
  */
-export default function PromptViewModal({ prompt, onClose, onEdit, onCopy }: PromptViewModalProps) {
+export default function PromptViewModal({ prompt, onClose, onEdit, onCopy, onContentModified }: PromptViewModalProps) {
+    const [showAIModal, setShowAIModal] = useState(false);
+
     // ESC 键关闭
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Escape') onClose();
+    };
+
+    const handleAIModified = (newContent: string) => {
+        if (onContentModified) {
+            onContentModified(newContent);
+        }
     };
 
     return (
@@ -106,6 +117,16 @@ export default function PromptViewModal({ prompt, onClose, onEdit, onCopy }: Pro
 
                     <div className="flex items-center gap-2">
                         <button
+                            onClick={() => setShowAIModal(true)}
+                            className="btn btn-ghost text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                            title="AI 智能修改"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            AI 修改
+                        </button>
+                        <button
                             onClick={onEdit}
                             className="btn btn-secondary"
                         >
@@ -126,6 +147,15 @@ export default function PromptViewModal({ prompt, onClose, onEdit, onCopy }: Pro
                     </div>
                 </div>
             </div>
+
+            {/* AI 修改弹窗 */}
+            {showAIModal && (
+                <AIModifyModal
+                    content={prompt.content}
+                    onClose={() => setShowAIModal(false)}
+                    onApply={handleAIModified}
+                />
+            )}
         </div>
     );
 }

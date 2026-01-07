@@ -51,6 +51,40 @@ async def get_tags(current_user: dict = Depends(get_current_user)):
     return [item["_id"] for item in result]
 
 
+from pydantic import BaseModel
+
+class AIModifyRequest(BaseModel):
+    """AI 修改请求模型"""
+    content: str
+    suggestion: str
+
+class AIModifyResponse(BaseModel):
+    """AI 修改响应模型"""
+    modified_content: str
+
+
+@router.post("/ai-modify", response_model=AIModifyResponse)
+async def ai_modify_prompt(
+    request: AIModifyRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """使用 AI 修改提示词"""
+    from ..services.llm_service import modify_prompt_with_ai
+    
+    try:
+        modified_content = await modify_prompt_with_ai(request.content, request.suggestion)
+        return AIModifyResponse(modified_content=modified_content)
+    except ValueError as e:
+        print(f"AI Modify Error (ValueError): {str(e)}")  # Debug Log
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        print(f"AI Modify Error (Exception): {str(e)}")   # Debug Log
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"AI 服务调用失败: {str(e)}"
+        )
+
+
 @router.get("", response_model=PromptListResponse)
 async def get_prompts(
     category_id: Optional[str] = Query(None, description="分类ID"),

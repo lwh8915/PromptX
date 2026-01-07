@@ -145,6 +145,15 @@ export const promptApi = {
         return response.data;
     },
 
+    // AI 修改提示词
+    aiModify: async (content: string, suggestion: string): Promise<{ modified_content: string }> => {
+        const response = await api.post<{ modified_content: string }>('/prompts/ai-modify', {
+            content,
+            suggestion
+        });
+        return response.data;
+    },
+
     // 获取单个提示词
     getById: async (id: string): Promise<Prompt> => {
         const response = await api.get<Prompt>(`/prompts/${id}`);
