@@ -34,6 +34,18 @@ services:
     networks:
       - promptx-network
 
+  # 自动更新服务
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true # 自动清理旧镜像
+      - WATCHTOWER_POLL_INTERVAL=60 # 每60秒检查一次更新
+    command: --active-deadline-sec 30 # 容器更新超时时间
+
 networks:
   promptx-network:
     driver: bridge

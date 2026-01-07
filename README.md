@@ -153,6 +153,10 @@ SMTP_PASSWORD=16位授权码
 docker-compose -f docker-compose.hub.yml up -d
 ```
 
+> **🔥 自动热更新已启用**：
+> 默认集成了 `Watchtower` 服务，它会每 **60秒** 检查一次 Docker Hub。
+> 当你推送新镜像时，部署服务器会自动拉取并重启服务，无需人工通过。
+
 ### 方式二：源码构建
 
 如果你想自己修改代码并构建：
