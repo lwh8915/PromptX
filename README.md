@@ -119,13 +119,20 @@ npm run build
 
 ### 首页 & 登录
 
-````carousel
-![精美的落地页，展示产品价值和核心功能](promptx_imgs/shouye1.png)
-<!-- slide -->
-![现代化的登录界面，支持用户名/邮箱登录](promptx_imgs/denglu.png)
-<!-- slide -->
-![安全的注册流程，包含安全问题设置](promptx_imgs/zhuce.png)
-````
+<div align="center">
+  <img src="promptx_imgs/shouye1.png" alt="精美的落地页，展示产品价值和核心功能" width="800"/>
+  <p><em>精美的落地页，展示产品价值和核心功能</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/denglu.png" alt="现代化的登录界面" width="800"/>
+  <p><em>现代化的登录界面，支持用户名/邮箱登录</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/zhuce.png" alt="注册流程" width="800"/>
+  <p><em>安全的注册流程，包含安全问题设置</em></p>
+</div>
 
 **首页** 采用深色玻璃态风格，醒目展示产品定位和核心价值。**登录/注册** 页面设计简洁优雅，支持用户名或邮箱登录，并提供安全问题验证机制。
 
@@ -133,13 +140,20 @@ npm run build
 
 ### 主界面 & 智能分类
 
-````carousel
-![Dashboard 主界面 - Notion 风格的侧边栏布局](promptx_imgs/dashboard.png)
-<!-- slide -->
-![预置智能分类过滤器](promptx_imgs/yuzhifenlei.png)
-<!-- slide -->
-![卡片式提示词展示](promptx_imgs/kapian.png)
-````
+<div align="center">
+  <img src="promptx_imgs/dashboard.png" alt="Dashboard 主界面" width="800"/>
+  <p><em>Dashboard 主界面 - Notion 风格的侧边栏布局</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/yuzhifenlei.png" alt="智能分类过滤器" width="800"/>
+  <p><em>预置智能分类过滤器</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/kapian.png" alt="卡片式展示" width="800"/>
+  <p><em>卡片式提示词展示</em></p>
+</div>
 
 **Dashboard** 采用经典的侧边栏 + 主内容区布局。左侧包含智能过滤器和分类树，右侧以精美卡片展示提示词，支持一键复制、编辑、收藏等操作。
 
@@ -147,17 +161,30 @@ npm run build
 
 ### 核心功能
 
-````carousel
-![全局搜索 - 快速定位提示词](promptx_imgs/sousuo.png)
-<!-- slide -->
-![标签筛选 - 多维度过滤](promptx_imgs/biaoqianshaixuan.png)
-<!-- slide -->
-![收藏功能 - 管理常用提示词](promptx_imgs/shoucang.png)
-<!-- slide -->
-![新建提示词 - 丰富的编辑选项](promptx_imgs/xinjian.png)
-<!-- slide -->
-![阅读模式 - 沉浸式查看体验](promptx_imgs/dianjichakan.png)
-````
+<div align="center">
+  <img src="promptx_imgs/sousuo.png" alt="全局搜索" width="800"/>
+  <p><em>全局搜索 - 快速定位提示词</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/biaoqianshaixuan.png" alt="标签筛选" width="800"/>
+  <p><em>标签筛选 - 多维度过滤</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/shoucang.png" alt="收藏功能" width="800"/>
+  <p><em>收藏功能 - 管理常用提示词</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/xinjian.png" alt="新建提示词" width="800"/>
+  <p><em>新建提示词 - 丰富的编辑选项</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/dianjichakan.png" alt="阅读模式" width="800"/>
+  <p><em>阅读模式 - 沉浸式查看体验</em></p>
+</div>
 
 **全局搜索** 支持关键词快速检索，**标签系统** 提供多选筛选功能，**收藏功能** 让常用提示词触手可及。创建新提示词时可设置分类、标签等元数据。
 
@@ -165,7 +192,10 @@ npm run build
 
 ### 🤖 AI 智能修改
 
-![AI 智能修改弹窗 - 输入修改建议，自动优化提示词](promptx_imgs/AI.png)
+<div align="center">
+  <img src="promptx_imgs/AI.png" alt="AI 智能修改" width="800"/>
+  <p><em>AI 智能修改弹窗 - 输入修改建议，自动优化提示词</em></p>
+</div>
 
 点击提示词卡片上的 **AI 修改** 按钮，在弹窗中输入你的优化建议（如"让语气更专业"、"增加结构化格式"等），系统会自动将原提示词与你的建议拼接，发送给 AI 模型进行智能优化，生成改进版本。
 
@@ -173,15 +203,25 @@ npm run build
 
 ### 📦 版本管理
 
-````carousel
-![版本历史列表 - 自动保存每次修改](promptx_imgs/banben.png)
-<!-- slide -->
-![版本对比选择](promptx_imgs/banbenduibi.png)
-<!-- slide -->
-![差异对比结果 - 清晰展示修改内容](promptx_imgs/banbenduibijieguo.png)
-<!-- slide -->
-![一键回退到历史版本](promptx_imgs/huituibanben.png)
-````
+<div align="center">
+  <img src="promptx_imgs/banben.png" alt="版本历史" width="800"/>
+  <p><em>版本历史列表 - 自动保存每次修改</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/banbenduibi.png" alt="版本对比选择" width="800"/>
+  <p><em>版本对比选择</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/banbenduibijieguo.png" alt="差异对比结果" width="800"/>
+  <p><em>差异对比结果 - 清晰展示修改内容</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/huituibanben.png" alt="版本回退" width="800"/>
+  <p><em>一键回退到历史版本</em></p>
+</div>
 
 **版本管理系统** 自动保存每次提示词修改，支持查看完整历史记录、对比任意两个版本的差异，并可一键恢复到历史版本。让你的提示词迭代过程有据可查，永不丢失灵感。
 
@@ -189,11 +229,15 @@ npm run build
 
 ### 🔄 热更新机制
 
-````carousel
-![Docker 热更新配置](promptx_imgs/regengxin.png)
-<!-- slide -->
-![云端自动部署流程](promptx_imgs/regengxinyunduan.png)
-````
+<div align="center">
+  <img src="promptx_imgs/regengxin.png" alt="热更新配置" width="800"/>
+  <p><em>Docker 热更新配置</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/regengxinyunduan.png" alt="云端部署" width="800"/>
+  <p><em>云端自动部署流程</em></p>
+</div>
 
 集成 **Watchtower** 服务，每 60 秒自动检测 Docker Hub 镜像更新。开发者推送新版本后，部署服务器会自动拉取并重启服务，实现零人工介入的持续部署。
 
