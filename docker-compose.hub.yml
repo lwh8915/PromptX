@@ -17,6 +17,23 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM_NAME=${SMTP_FROM_NAME:-Prompt Manager}
+      # LLM API 配置 (AI 提示词修改功能 - 多模型)
+      # Zhipu (智谱)
+      - ZHIPU_BASE_URL=${ZHIPU_BASE_URL:-https://demo.awa1.fun/v1/messages}
+      - ZHIPU_API_KEY=${ZHIPU_API_KEY:-}
+      - ZHIPU_MODEL=${ZHIPU_MODEL:-ZhipuAI/GLM-4.7}
+      # DeepSeek
+      - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://ai.zzhdsgsss.xyz/v1/chat/completions}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-ai/DeepSeek-R1-0528-fast}
+      # Gemini
+      - GEMINI_BASE_URL=${GEMINI_BASE_URL:-https://gyapi.zxiaoruan.cn/v1/chat/completions}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3-pro}
+      # Claude
+      - CLAUDE_BASE_URL=${CLAUDE_BASE_URL:-https://gyapi.zxiaoruan.cn/v1/chat/completions}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
     ports:
       - "8000:8000"
     networks:
@@ -44,7 +61,7 @@ services:
     environment:
       - WATCHTOWER_CLEANUP=true # 自动清理旧镜像
       - WATCHTOWER_HTTP_API_UPDATE=true # 开启 HTTP API
-      - WATCHTOWER_HTTP_API_TOKEN=自定义token # 根据用户要求设置
+      - WATCHTOWER_HTTP_API_TOKEN=420420 # 根据用户要求设置
     ports:
       - "3581:8080" # 外部端口3581 -> 容器端口8080
     command: --active-deadline-sec 30 # 容器更新超时时间

@@ -57,10 +57,19 @@ class AIModifyRequest(BaseModel):
     """AI 修改请求模型"""
     content: str
     suggestion: str
+    model: str = "default"
+
 
 class AIModifyResponse(BaseModel):
     """AI 修改响应模型"""
     modified_content: str
+
+
+@router.get("/ai-models")
+async def get_ai_models(current_user: dict = Depends(get_current_user)):
+    """获取可用 AI 模型列表"""
+    from ..core.llm_config import get_available_models
+    return get_available_models()
 
 
 @router.post("/ai-modify", response_model=AIModifyResponse)
@@ -72,7 +81,7 @@ async def ai_modify_prompt(
     from ..services.llm_service import modify_prompt_with_ai
     
     try:
-        modified_content = await modify_prompt_with_ai(request.content, request.suggestion)
+        modified_content = await modify_prompt_with_ai(request.content, request.suggestion, request.model)
         return AIModifyResponse(modified_content=modified_content)
     except ValueError as e:
         print(f"AI Modify Error (ValueError): {str(e)}")  # Debug Log

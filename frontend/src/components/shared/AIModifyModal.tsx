@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { promptApi } from '../../api/client';
 
 interface AIModifyModalProps {
     content: string;
     onClose: () => void;
     onApply: (modifiedContent: string) => void;
+}
+
+interface AIModel {
+    key: string;
+    name: string;
 }
 
 /**
@@ -18,6 +23,31 @@ export default function AIModifyModal({ content, onClose, onApply }: AIModifyMod
     const [modifiedContent, setModifiedContent] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    // 模型选择状态
+    const [models, setModels] = useState<AIModel[]>([]);
+    const [selectedModel, setSelectedModel] = useState<string>('default');
+
+    // 加载可用模型
+    useEffect(() => {
+        const fetchModels = async () => {
+            try {
+                const availableModels = await promptApi.getAIModels();
+                setModels(availableModels);
+                // 如果默认有 deepseek，优先选用 (可选逻辑)
+                if (availableModels.find(m => m.key === 'deepseek')) {
+                    setSelectedModel('deepseek');
+                } else if (availableModels.length > 0) {
+                    setSelectedModel(availableModels[0].key);
+                }
+            } catch (err) {
+                console.error('Failed to fetch AI models:', err);
+                // 出错也不阻断，使用默认 default
+                setModels([{ key: 'default', name: 'Default Model' }]);
+            }
+        };
+        fetchModels();
+    }, []);
+
     const handleSend = async () => {
         if (!suggestion.trim()) {
             setError('请输入修改建议');
@@ -28,7 +58,8 @@ export default function AIModifyModal({ content, onClose, onApply }: AIModifyMod
         setError(null);
 
         try {
-            const result = await promptApi.aiModify(content, suggestion);
+            // 传入选择的模型 key
+            const result = await promptApi.aiModify(content, suggestion, selectedModel);
             setModifiedContent(result.modified_content);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'AI 服务调用失败');
@@ -110,9 +141,29 @@ export default function AIModifyModal({ content, onClose, onApply }: AIModifyMod
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-                                    修改建议
-                                </label>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="block text-sm font-medium text-[var(--text-primary)]">
+                                        修改建议
+                                    </label>
+
+                                    {/* 模型选择器 */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-[var(--text-tertiary)]">模型:</span>
+                                        <select
+                                            value={selectedModel}
+                                            onChange={(e) => setSelectedModel(e.target.value)}
+                                            disabled={isLoading}
+                                            className="select select-sm select-bordered max-w-xs bg-[var(--bg-tertiary)] text-xs h-8 min-h-0"
+                                        >
+                                            {models.map(model => (
+                                                <option key={model.key} value={model.key}>
+                                                    {model.key} ({model.name})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
                                 <textarea
                                     value={suggestion}
                                     onChange={(e) => setSuggestion(e.target.value)}
@@ -169,8 +220,10 @@ export default function AIModifyModal({ content, onClose, onApply }: AIModifyMod
                                         <span className="w-2 h-2 rounded-full bg-green-400"></span>
                                         修改后 (AI Modified)
                                     </span>
-                                    <div className="text-xs text-[var(--text-tertiary)]">
-                                        建议: {suggestion}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs px-2 py-1 rounded bg-[var(--bg-tertiary)] border border-[var(--border-tertiary)] text-[var(--text-secondary)]">
+                                            Model: {models.find(m => m.key === selectedModel)?.name || selectedModel}
+                                        </span>
                                     </div>
                                 </div>
                                 <div className="flex-1 p-4 rounded-xl bg-green-500/5 border border-green-500/20 overflow-y-auto shadow-inner relative group">

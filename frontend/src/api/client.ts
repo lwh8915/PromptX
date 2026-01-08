@@ -146,11 +146,18 @@ export const promptApi = {
     },
 
     // AI 修改提示词
-    aiModify: async (content: string, suggestion: string): Promise<{ modified_content: string }> => {
+    aiModify: async (content: string, suggestion: string, model: string = 'default'): Promise<{ modified_content: string }> => {
         const response = await api.post<{ modified_content: string }>('/prompts/ai-modify', {
             content,
-            suggestion
+            suggestion,
+            model
         });
+        return response.data;
+    },
+
+    // 获取可用模型列表
+    getAIModels: async (): Promise<Array<{ key: string; name: string }>> => {
+        const response = await api.get<Array<{ key: string; name: string }>>('/prompts/ai-models');
         return response.data;
     },
 

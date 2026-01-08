@@ -1,161 +1,176 @@
 """
 LLM 服务模块
 用于调用大模型 API 进行提示词修改
-参考 NovelBot backend/app/api/chat.py 实现
+完全仿照 NovelBot backend/app/api/chat.py 实现
 """
 import httpx
 import json
-from ..config import get_settings
+from ..core.llm_config import get_llm_config, LLMProvider
 
-
-async def modify_prompt_with_ai(content: str, suggestion: str) -> str:
+async def modify_prompt_with_ai(content: str, suggestion: str, model_key: str = "default") -> str:
     """
     使用 AI 修改提示词
     
     Args:
         content: 原始提示词内容
         suggestion: 用户的修改建议
+        model_key: 模型配置键名 (default, deepseek, gemini, claude)
     
     Returns:
         修改后的提示词内容
     """
-    settings = get_settings()
+    try:
+        config = get_llm_config(model_key)
+    except ValueError:
+        config = get_llm_config("default")
     
-    if not settings.llm_base_url or not settings.llm_api_key:
-        raise ValueError("LLM API 未配置，请设置 LLM_BASE_URL 和 LLM_API_KEY 环境变量")
+    # 构造系统提示词 - 强调只输出结果
+    system_prompt = """你是一个提示词优化专家。
+重要规则：
+1. 只输出修改后的提示词本身
+2. 不要添加任何解释、分析、思考过程或说明文字
+3. 不要使用 markdown 代码块包裹
+4. 直接以提示词内容开头"""
     
-    # 构造系统提示词
-    system_prompt = """你是一个专业的提示词优化专家。你的任务是根据用户的修改建议，对给定的提示词进行优化。
-请直接输出优化后的提示词内容，不要添加任何解释或说明。"""
-    
-    # 仿照 NovelBot 逻辑：将系统提示词合并到 User 消息中，不使用 System Role
+    # 将系统提示词合并到 User 消息中（仿照 NovelBot）
     user_content = f"""{system_prompt}
 
 ---
 
-用户问题：
 当前提示词:
 {content}
 
-请按照以下建议修改提示词:
-{suggestion}
+修改要求: {suggestion}
 
-请直接输出修改后的完整提示词内容:"""
+现在直接输出修改后的提示词:"""
 
-    headers = {
-        "Authorization": f"Bearer {settings.llm_api_key}",
-        "Content-Type": "application/json"
-    }
+    # 构建消息列表（仿照 NovelBot）
+    llm_messages = [
+        {"role": "user", "content": user_content}
+    ]
+
+    # 根据提供商类型设置正确的认证头（完全仿照 NovelBot）
+    if config.provider == LLMProvider.OPENAI:
+        # OpenAI兼容API使用Bearer token
+        headers = {
+            "Authorization": f"Bearer {config.api_key}",
+            "Content-Type": "application/json",
+            **config.headers
+        }
+    else:
+        # Anthropic/Zhipu使用x-api-key
+        headers = {
+            "x-api-key": config.api_key,
+            "Content-Type": "application/json",
+            **config.headers
+        }
     
-    # 获取 max_tokens
-    max_tokens = 4096
-    if hasattr(settings, 'llm_max_tokens') and settings.llm_max_tokens:
-        max_tokens = settings.llm_max_tokens
-
+    # 判断是否使用流式（ZHIPU/ANTHROPIC 不支持流式，返回 400）
+    use_stream = config.provider == LLMProvider.OPENAI
+    
+    # 使用与提供商一致的格式
     payload = {
-        "model": settings.llm_model,
-        "messages": [
-            {"role": "user", "content": user_content}
-        ],
-        "stream": False,  # 尝试请求非流式
-        "max_tokens": max_tokens,
-        "temperature": 0.7
+        "model": config.model,
+        "messages": llm_messages,
+        "max_tokens": config.max_tokens,
     }
     
-    print(f"LLM REQUEST URL: {settings.llm_base_url}")
+    # 只有 OpenAI 兼容 API 才加 stream 和 temperature
+    if use_stream:
+        payload["stream"] = True
+        payload["temperature"] = 0.7
+        payload["top_p"] = 1
     
-    async with httpx.AsyncClient(timeout=300.0) as client:
-        # 注意: 如果代理强制流式，这里虽然请求 stream=False，但可能返回 stream
-        # 为了兼容性，我们先发起普通请求，但做好解析流式响应的准备
-        request = client.build_request("POST", settings.llm_base_url, headers=headers, json=payload)
-        response = await client.send(request, stream=True)
-        
-        if response.status_code != 200:
-            await response.read() # 读取错误信息
-            error_detail = response.text
-            print(f"LLM API Error (HTTP {response.status_code}): {error_detail}")
-            raise ValueError(f"LLM API 返回错误 (HTTP {response.status_code}): {error_detail}")
-        
-        # 尝试读取第一块数据来判断是否为流式
-        # 这种方式有点 hacky，但能兼容强制流式的代理
-        content_buffer = ""
-        is_stream = False
-        
-        # 读取响应头 Content-Type
-        content_type = response.headers.get("Content-Type", "")
-        if "text/event-stream" in content_type:
-            is_stream = True
-        
-        if is_stream:
-            print("Detected SSE Stream response (forced by proxy)")
-            async for line in response.aiter_lines():
-                if not line:
-                    continue
-                if line.startswith("data: "):
-                    data_str = line[6:].strip()
-                    if data_str == "[DONE]":
-                        break
-                    try:
-                        data = json.loads(data_str)
-                        if "choices" in data and len(data["choices"]) > 0:
-                            delta = data["choices"][0].get("delta", {})
-                            # 过滤 reasoning_content (DeepSeek R1/CoT)，只取 content
-                            chunk = delta.get("content", "")
-                            if chunk:
-                                content_buffer += chunk
-                    except json.JSONDecodeError:
-                        continue
-            
-            return content_buffer.strip()
-            
-        else:
-            # 普通 JSON 响应
-            # 读取全部内容
-            response_text = ""
-            async for chunk in response.aiter_text():
-                response_text += chunk
-            
-            try:
-                # 某些代理可能会返回 data: {...} 开头的 SSE 文本但 Content-Type 没写对
-                # 所以我们先尝试当 JSON 解析
-                data = json.loads(response_text)
-                
-                # OpenAI 格式
-                if "choices" in data and len(data["choices"]) > 0:
-                    message = data["choices"][0].get("message", {})
-                    return message.get("content", "").strip()
-                elif "content" in data and isinstance(data["content"], list):
-                     # Anthropic 格式兼容
-                    return data["content"][0].get("text", "").strip()
-                else:
-                    # 可能是其他格式，或者空的
-                    print(f"Unexpected JSON: {data}")
-                    if "error" in data:
-                        raise ValueError(f"API Error: {data['error']}")
-                    return str(data)
+    print(f"[LLM Service] 调用LLM: {config.base_url}")
+    print(f"[LLM Service] Model: {config.model}")
+    print(f"[LLM Service] Provider: {config.provider}, Stream: {use_stream}")
+    
+    full_content = ""
+    
+    try:
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            if use_stream:
+                # 流式请求（OpenAI 兼容）
+                async with client.stream(
+                    "POST",
+                    config.base_url,
+                    headers=headers,
+                    json=payload
+                ) as response:
+                    if response.status_code != 200:
+                        error_text = await response.aread()
+                        error_msg = f"API错误: {response.status_code} - {error_text.decode()[:200]}"
+                        print(f"[LLM Service] {error_msg}")
+                        raise ValueError(error_msg)
                     
-            except json.JSONDecodeError:
-                # 如果 JSON 解析失败，检查是否是 SSE 格式的文本堆在一起
-                print("JSON Decode Failed, trying to parse as SSE text dump")
-                if "data: " in response_text:
-                    lines = response_text.split('\n')
-                    for line in lines:
+                    print(f"[LLM Service] 开始接收流式响应...")
+                    
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        
                         if line.startswith("data: "):
-                            data_str = line[6:].strip()
-                            if data_str == "[DONE]":
-                                continue
+                            data_str = line[6:]
+                            if data_str.strip() == "[DONE]":
+                                break
+                            
                             try:
                                 data = json.loads(data_str)
+                                
+                                # OpenAI格式
                                 if "choices" in data and len(data["choices"]) > 0:
-                                    delta = data["choices"][0].get("delta", {}) or data["choices"][0].get("message", {})
-                                    chunk = delta.get("content", "")
-                                    if chunk:
-                                        content_buffer += chunk
-                            except:
-                                pass
-                    if content_buffer:
-                        return content_buffer.strip()
+                                    delta = data["choices"][0].get("delta", {})
+                                    # 跳过 reasoning_content (DeepSeek R1)
+                                    if "reasoning_content" in delta:
+                                        continue
+                                    text = delta.get("content", "")
+                                    if text:
+                                        full_content += text
+                                        
+                            except json.JSONDecodeError:
+                                continue
+                    
+                    print(f"[LLM Service] 流式响应完成, 总长度: {len(full_content)}")
+            else:
+                # 非流式请求（ZHIPU/ANTHROPIC）
+                response = await client.post(
+                    config.base_url,
+                    headers=headers,
+                    json=payload
+                )
                 
-                # 实在不行就抛错
-                print(f"Raw Response: {response_text[:200]}")
-                raise ValueError(f"LLM API 返回无效格式: {response_text[:200]}")
+                if response.status_code != 200:
+                    error_msg = f"API错误: {response.status_code} - {response.text[:200]}"
+                    print(f"[LLM Service] {error_msg}")
+                    raise ValueError(error_msg)
+                
+                data = response.json()
+                print(f"[LLM Service] 非流式响应: {str(data)[:200]}")
+                
+                # 解析 Anthropic 格式响应
+                if "content" in data and isinstance(data["content"], list):
+                    for block in data["content"]:
+                        if block.get("type") == "text":
+                            full_content += block.get("text", "")
+                # 解析 OpenAI 格式响应
+                elif "choices" in data and len(data["choices"]) > 0:
+                    message = data["choices"][0].get("message", {})
+                    full_content = message.get("content", "")
+                else:
+                    print(f"[LLM Service] 未知响应格式: {data}")
+                    raise ValueError(f"未知的API响应格式")
+                
+                print(f"[LLM Service] 非流式响应完成, 总长度: {len(full_content)}")
+                
+    except httpx.TimeoutException:
+        raise ValueError("LLM API 请求超时")
+    except httpx.ConnectError as e:
+        raise ValueError(f"无法连接到 LLM API: {e}")
+    except Exception as e:
+        print(f"[LLM Service] 异常: {e}")
+        raise
+    
+    if not full_content:
+        raise ValueError("LLM 未返回任何内容")
+    
+    return full_content.strip()

@@ -197,8 +197,8 @@ export default function Dashboard() {
                                 <button
                                     onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
                                     className={`btn btn-ghost px-3 py-2 flex items-center gap-2 border rounded-lg transition-all ${selectedTags.length > 0
-                                            ? 'border-[var(--primary-500)] bg-[var(--primary-500)]/10 text-[var(--primary-400)]'
-                                            : 'border-[var(--border-secondary)] text-[var(--text-secondary)] hover:border-[var(--border-primary)]'
+                                        ? 'border-[var(--primary-500)] bg-[var(--primary-500)]/10 text-[var(--primary-400)]'
+                                        : 'border-[var(--border-secondary)] text-[var(--text-secondary)] hover:border-[var(--border-primary)]'
                                         }`}
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -489,6 +489,21 @@ export default function Dashboard() {
                         }}
                         onCopy={() => {
                             handleCopy(viewingPrompt);
+                        }}
+                        onContentModified={async (newContent) => {
+                            try {
+                                // 调用后端 API 更新提示词内容
+                                const { promptApi } = await import('../api/client');
+                                await promptApi.update(viewingPrompt.id, { content: newContent });
+                                // 刷新列表
+                                fetchPrompts();
+                                // 更新当前查看的提示词
+                                setViewingPrompt({ ...viewingPrompt, content: newContent });
+                                setToast({ message: 'AI 修改已应用', type: 'success' });
+                            } catch (error) {
+                                console.error('Failed to save AI modification:', error);
+                                setToast({ message: '保存失败，请重试', type: 'error' });
+                            }
                         }}
                     />
                 )
