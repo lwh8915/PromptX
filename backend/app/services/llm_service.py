@@ -49,7 +49,7 @@ async def modify_prompt_with_ai(content: str, suggestion: str, model_key: str = 
         {"role": "user", "content": user_content}
     ]
 
-    # 根据提供商类型设置正确的认证头（完全仿照 NovelBot）
+    # 根据提供商类型设置正确的认证头和请求格式（完全仿照 NovelBot chapters.py）
     if config.provider == LLMProvider.OPENAI:
         # OpenAI兼容API使用Bearer token
         headers = {
@@ -58,11 +58,11 @@ async def modify_prompt_with_ai(content: str, suggestion: str, model_key: str = 
             **config.headers
         }
     else:
-        # Anthropic/Zhipu使用x-api-key
+        # Anthropic/Zhipu使用x-api-key + anthropic-version (完全仿照 NovelBot)
         headers = {
             "x-api-key": config.api_key,
-            "Content-Type": "application/json",
-            **config.headers
+            "anthropic-version": "2023-06-01",  # 必须！NovelBot 硬编码此值
+            "Content-Type": "application/json"
         }
     
     # 判断是否使用流式（ZHIPU/ANTHROPIC 不支持流式，返回 400）
