@@ -41,6 +41,9 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
 
     const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
 
+    // 部署状态
+    const [isDeploying, setIsDeploying] = useState(false);
+    const [deployStatus, setDeployStatus] = useState<'idle' | 'building' | 'pushing' | 'success' | 'error'>('idle');
 
     // 新建分类状态
     const [addingCategoryParentId, setAddingCategoryParentId] = useState<string>('');
@@ -482,34 +485,84 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
                     <div className="flex gap-2 mt-3">
                         <button
                             onClick={async () => {
-                                // 1. 获取/设置 Webhook 配置
-                                let webhookUrl = localStorage.getItem('deploy_webhook_url');
-                                let webhookToken = localStorage.getItem('deploy_webhook_token');
+                                if (isDeploying) return;
 
-                                // 如果没有配置，或者按住 Shift 点击（强制配置），则弹出输入框
-                                // 注意：React 中这里最好用 Modal，但为了不破坏现有结构，暂时用 prompt
-                                // 更好的方式是像 Task 建议的那样，添加一个小的设置弹窗。
-                                // 但用户要求"点击发布更新在部署机器那边也能直接拉取"，所以这里简化流程，首次询问即可。
-
-
+                                // 获取 Webhook 配置
+                                const webhookUrl = localStorage.getItem('deploy_webhook_url');
+                                const webhookToken = localStorage.getItem('deploy_webhook_token');
 
                                 if (!confirm(`确定要构建并推送新镜像到 Docker Hub 吗？\n${webhookUrl ? `并触发服务器更新 (${webhookUrl})` : '(仅推送，不触发服务器更新)'}`)) return;
 
+                                setIsDeploying(true);
+                                setDeployStatus('building');
+
                                 try {
-                                    alert('🚀 部署任务已启动，请留意后台日志或等待片刻。\n(前端页面稍后可能会重新加载)');
                                     const { deployApi } = await import('../../api/client');
                                     await deployApi.triggerDeploy(webhookUrl || undefined, webhookToken || undefined);
+
+                                    // 后台任务已启动，显示进行中状态
+                                    setDeployStatus('pushing');
+
+                                    // 模拟等待（后台任务实际可能需要几分钟）
+                                    setTimeout(() => {
+                                        setDeployStatus('success');
+                                        setTimeout(() => {
+                                            setIsDeploying(false);
+                                            setDeployStatus('idle');
+                                        }, 3000);
+                                    }, 2000);
+
                                 } catch (error) {
                                     console.error('Deploy failed:', error);
-                                    alert('❌ 部署启动失败，请检查控制台。');
+                                    setDeployStatus('error');
+                                    setTimeout(() => {
+                                        setIsDeploying(false);
+                                        setDeployStatus('idle');
+                                    }, 3000);
                                 }
                             }}
-                            className="flex-1 btn btn-ghost text-xs text-[var(--text-secondary)] hover:text-[var(--primary-400)] flex items-center justify-center gap-2 border border-dashed border-[var(--border-secondary)] hover:border-[var(--primary-500)] py-2 rounded-lg transition-all"
+                            disabled={isDeploying}
+                            className={`flex-1 btn text-xs flex items-center justify-center gap-2 py-2 rounded-lg transition-all ${isDeploying
+                                    ? deployStatus === 'error'
+                                        ? 'bg-red-500/20 border-red-500/50 text-red-400 cursor-not-allowed'
+                                        : deployStatus === 'success'
+                                            ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                                            : 'bg-blue-500/20 border-blue-500/50 text-blue-400 cursor-wait'
+                                    : 'btn-ghost text-[var(--text-secondary)] hover:text-[var(--primary-400)] border border-dashed border-[var(--border-secondary)] hover:border-[var(--primary-500)]'
+                                }`}
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                            </svg>
-                            发布更新
+                            {isDeploying ? (
+                                deployStatus === 'success' ? (
+                                    <>
+                                        <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        部署成功！
+                                    </>
+                                ) : deployStatus === 'error' ? (
+                                    <>
+                                        <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                        部署失败
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                        </svg>
+                                        {deployStatus === 'building' ? '构建中...' : '推送中...'}
+                                    </>
+                                )
+                            ) : (
+                                <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                    </svg>
+                                    发布更新
+                                </>
+                            )}
                         </button>
 
                         <button

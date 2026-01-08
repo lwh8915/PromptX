@@ -34,6 +34,9 @@ services:
       - CLAUDE_BASE_URL=${CLAUDE_BASE_URL:-https://gyapi.zxiaoruan.cn/v1/chat/completions}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
       - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      # Watchtower 内网调用配置 (用于 /trigger-update 端点)
+      - WATCHTOWER_URL=http://watchtower:8080/v1/update
+      - WATCHTOWER_TOKEN=420420
     ports:
       - "8000:8000"
     networks:
@@ -61,9 +64,11 @@ services:
     environment:
       - WATCHTOWER_CLEANUP=true # 自动清理旧镜像
       - WATCHTOWER_HTTP_API_UPDATE=true # 开启 HTTP API
-      - WATCHTOWER_HTTP_API_TOKEN=420420 # 根据用户要求设置
+      - WATCHTOWER_HTTP_API_TOKEN=420420 # 与 WATCHTOWER_TOKEN 保持一致
     ports:
       - "3581:8080" # 外部端口3581 -> 容器端口8080
+    networks:
+      - promptx-network # 加入同一网络，使后端可以通过容器名访问
     command: --active-deadline-sec 30 # 容器更新超时时间
 
 networks:
