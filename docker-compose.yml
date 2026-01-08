@@ -34,6 +34,11 @@ services:
       - CLAUDE_BASE_URL=${CLAUDE_BASE_URL:-https://gyapi.zxiaoruan.cn/v1/chat/completions}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
       - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      # Docker Hub 登录凭证 (用于一键发布)
+      - DOCKER_HUB_USERNAME=${DOCKER_HUB_USERNAME:-lwh2460731039}
+      - DOCKER_HUB_PASSWORD=${DOCKER_HUB_PASSWORD:-}
+      # 部署 API Key (用于 trigger-update 端点验证)
+      - DEPLOY_API_KEY=${DEPLOY_API_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # 允许访问宿主机 Docker
       - .:/workspace # 挂载项目根目录以便构建

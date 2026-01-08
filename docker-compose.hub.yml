@@ -36,7 +36,9 @@ services:
       - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
       # Watchtower 内网调用配置 (用于 /trigger-update 端点)
       - WATCHTOWER_URL=http://watchtower:8080/v1/update
-      - WATCHTOWER_TOKEN=420420
+      - WATCHTOWER_TOKEN=${WATCHTOWER_TOKEN}
+      # 部署 API Key (用于 trigger-update 端点验证，需与开发机保持一致)
+      - DEPLOY_API_KEY=${DEPLOY_API_KEY}
     ports:
       - "8000:8000"
     networks:
@@ -64,7 +66,7 @@ services:
     environment:
       - WATCHTOWER_CLEANUP=true # 自动清理旧镜像
       - WATCHTOWER_HTTP_API_UPDATE=true # 开启 HTTP API
-      - WATCHTOWER_HTTP_API_TOKEN=420420 # 与 WATCHTOWER_TOKEN 保持一致
+      - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_TOKEN} # 与后端 WATCHTOWER_TOKEN 使用相同环境变量
     ports:
       - "3581:8080" # 外部端口3581 -> 容器端口8080
     networks:

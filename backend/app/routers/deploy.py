@@ -23,6 +23,21 @@ def run_deploy_task(webhook_url: str | None = None, webhook_token: str | None = 
         # 连接到宿主机 Docker
         client = docker.from_env()
         
+        # Docker Hub 认证配置 (从环境变量读取)
+        docker_username = os.getenv("DOCKER_HUB_USERNAME", "lwh2460731039")
+        docker_password = os.getenv("DOCKER_HUB_PASSWORD", "")
+        
+        # 登录 Docker Hub (如果提供了密码)
+        if docker_password:
+            logger.info("正在登录 Docker Hub...")
+            try:
+                client.login(username=docker_username, password=docker_password)
+                logger.info("Docker Hub 登录成功")
+            except Exception as e:
+                logger.warning(f"Docker Hub 登录失败: {e}，尝试继续推送...")
+        
+        auth_config = {"username": docker_username, "password": docker_password} if docker_password else None
+        
         # 项目根目录（通过 docker-compose 挂载的 /workspace）
         workspace_path = "/workspace"
         
@@ -38,8 +53,16 @@ def run_deploy_task(webhook_url: str | None = None, webhook_token: str | None = 
         
         # 2. 推送后端镜像
         logger.info("正在推送后端镜像...")
-        client.images.push("lwh2460731039/promptx-backend:latest")
-        logger.info("后端镜像推送成功")
+        pushed_layers = 0
+        for line in client.images.push("lwh2460731039/promptx-backend:latest", stream=True, decode=True, auth_config=auth_config):
+            if "error" in line:
+                raise Exception(f"推送失败: {line['error']}")
+            status = line.get("status", "")
+            # 只记录完成状态
+            if status in ["Pushed", "Layer already exists"]:
+                pushed_layers += 1
+                logger.info(f"  后端层 {pushed_layers}: {status}")
+        logger.info(f"后端镜像推送成功 (共 {pushed_layers} 层)")
         
         # 3. 构建前端镜像
         logger.info("正在构建前端镜像...")
@@ -53,20 +76,33 @@ def run_deploy_task(webhook_url: str | None = None, webhook_token: str | None = 
         
         # 4. 推送前端镜像
         logger.info("正在推送前端镜像...")
-        client.images.push("lwh2460731039/promptx-frontend:latest")
-        logger.info("前端镜像推送成功")
+        pushed_layers = 0
+        for line in client.images.push("lwh2460731039/promptx-frontend:latest", stream=True, decode=True, auth_config=auth_config):
+            if "error" in line:
+                raise Exception(f"推送失败: {line['error']}")
+            status = line.get("status", "")
+            # 只记录完成状态
+            if status in ["Pushed", "Layer already exists"]:
+                pushed_layers += 1
+                logger.info(f"  前端层 {pushed_layers}: {status}")
+        logger.info(f"前端镜像推送成功 (共 {pushed_layers} 层)")
         
         # 5. 触发 Webhook (如果我们有配置)
         if webhook_url:
             logger.info(f"正在触发 Webhook: {webhook_url}")
             import requests # 需确保安装 requests，或使用 httpx
-            headers = {}
-            if webhook_token:
-                headers["Authorization"] = f"Bearer {webhook_token}"
+            
+            # 如果是调用 /trigger-update 端点，发送 deploy_key
+            deploy_key = os.getenv("DEPLOY_API_KEY", "")
             
             try:
-                # Watchtower HTTP API 只需要简单的 GET/POST
-                resp = requests.post(webhook_url, headers=headers, timeout=10)
+                # 发送 JSON body 包含 deploy_key
+                resp = requests.post(
+                    webhook_url, 
+                    json={"deploy_key": deploy_key},
+                    headers={"Content-Type": "application/json"},
+                    timeout=30
+                )
                 if resp.status_code == 200:
                     logger.info("✅ Webhook 触发成功，服务器正在更新...")
                 else:
@@ -113,25 +149,30 @@ async def trigger_deploy(
 
 class TriggerUpdateRequest(BaseModel):
     """触发更新请求 (供部署服务器接收)"""
-    token: str | None = None  # 可选的安全验证 token
+    deploy_key: str  # 部署密钥 (必需)
 
 
 @router.post("/trigger-update", response_model=DeployResponse)
-async def trigger_update(
-    request: TriggerUpdateRequest,
-    current_user: dict = Depends(get_current_user)
-):
+async def trigger_update(request: TriggerUpdateRequest):
     """
     触发 Watchtower 更新 (部署服务器端点)
     
     此端点供开发机在推送镜像后调用，部署服务器后端会在内网调用 Watchtower
+    使用 deploy_key 验证，不需要用户登录
     
     流程:
     1. 开发机推送镜像到 Docker Hub
-    2. 开发机调用部署服务器的 3580:/api/deploy/trigger-update
+    2. 开发机调用部署服务器的 /api/deploy/trigger-update (带 deploy_key)
     3. 部署服务器后端在内网调用 Watchtower (http://watchtower:8080/v1/update)
     """
     import httpx
+    from fastapi import HTTPException
+    
+    # 验证部署密钥
+    expected_key = os.getenv("DEPLOY_API_KEY", "")
+    if request.deploy_key != expected_key:
+        logger.warning("❌ 部署密钥验证失败")
+        raise HTTPException(status_code=403, detail="无效的部署密钥")
     
     # 从环境变量读取 Watchtower 配置 (内网地址)
     watchtower_url = os.getenv("WATCHTOWER_URL", "http://watchtower:8080/v1/update")
