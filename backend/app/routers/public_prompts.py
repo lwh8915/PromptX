@@ -73,6 +73,8 @@ def serialize_public_prompt(prompt: dict, current_user_id: str = None) -> dict:
         "download_count": prompt.get("download_count", 0),
         "like_count": prompt.get("like_count", 0),
         "is_liked": is_liked,
+        "avg_rating": prompt.get("avg_rating", 0),
+        "review_count": prompt.get("review_count", 0),
         "created_at": prompt.get("created_at", datetime.utcnow()),
         "updated_at": prompt.get("updated_at", datetime.utcnow())
     }
@@ -347,6 +349,7 @@ async def download_to_personal(
     """下载公共提示词到个人库"""
     public_collection = get_collection("public_prompts")
     prompts_collection = get_collection("prompts")
+    downloads_collection = get_collection("public_prompt_downloads")
     
     # 获取公共提示词
     try:
@@ -359,6 +362,8 @@ async def download_to_personal(
     
     if not public_prompt:
         raise HTTPException(status_code=404, detail="提示词不存在")
+    
+    user_id = ObjectId(current_user["id"])
     
     # 创建个人提示词副本
     now = datetime.utcnow()
@@ -383,6 +388,19 @@ async def download_to_personal(
         {"_id": ObjectId(prompt_id)},
         {"$inc": {"download_count": 1}}
     )
+    
+    # 记录下载历史（用于评价验证）
+    existing_download = await downloads_collection.find_one({
+        "prompt_id": ObjectId(prompt_id),
+        "user_id": user_id
+    })
+    if not existing_download:
+        await downloads_collection.insert_one({
+            "prompt_id": ObjectId(prompt_id),
+            "user_id": user_id,
+            "downloaded_at": now,
+            "has_reviewed": False
+        })
     
     return {
         "message": "下载成功",
@@ -786,3 +804,491 @@ async def reorder_categories(
             pass  # 忽略无效的ID
     
     return {"message": "排序更新成功"}
+
+
+# ============ 评价系统 API ============
+
+# 敏感词列表（基础版）
+SENSITIVE_WORDS = ["垃圾", "傻逼", "fuck", "shit", "废物", "骗子"]
+
+
+def filter_sensitive_words(text: str) -> str:
+    """过滤敏感词"""
+    result = text
+    for word in SENSITIVE_WORDS:
+        result = result.replace(word, "*" * len(word))
+    return result
+
+
+def serialize_review(review: dict, current_user_id: str = None) -> dict:
+    """序列化评价"""
+    liked_by = review.get("liked_by", [])
+    is_liked = False
+    if current_user_id:
+        is_liked = ObjectId(current_user_id) in liked_by or current_user_id in [str(uid) for uid in liked_by]
+    
+    return {
+        "id": str(review["_id"]),
+        "prompt_id": str(review.get("prompt_id", "")),
+        "user_id": str(review.get("user_id", "")),
+        "user_name": review.get("user_name", "匿名"),
+        "rating": review.get("rating", 5),
+        "content": review.get("content", ""),
+        "like_count": review.get("like_count", 0),
+        "is_liked": is_liked,
+        "author_reply": review.get("author_reply"),
+        "author_reply_at": review.get("author_reply_at"),
+        "status": review.get("status", "approved"),
+        "created_at": review.get("created_at", datetime.utcnow()),
+        "updated_at": review.get("updated_at", datetime.utcnow())
+    }
+
+
+async def update_prompt_rating(prompt_id: str):
+    """更新提示词的平均评分"""
+    reviews_collection = get_collection("public_prompt_reviews")
+    prompts_collection = get_collection("public_prompts")
+    
+    print(f"[DEBUG] update_prompt_rating called for prompt_id: {prompt_id}")
+    
+    # 计算平均分
+    pipeline = [
+        {"$match": {"prompt_id": ObjectId(prompt_id), "status": "approved"}},
+        {"$group": {
+            "_id": None,
+            "avg_rating": {"$avg": "$rating"},
+            "count": {"$sum": 1}
+        }}
+    ]
+    
+    result = await reviews_collection.aggregate(pipeline).to_list(1)
+    print(f"[DEBUG] Aggregation result: {result}")
+    
+    if result:
+        avg_rating = round(result[0]["avg_rating"], 1)
+        review_count = result[0]["count"]
+    else:
+        avg_rating = 0
+        review_count = 0
+    
+    print(f"[DEBUG] Updating prompt with avg_rating={avg_rating}, review_count={review_count}")
+    
+    update_result = await prompts_collection.update_one(
+        {"_id": ObjectId(prompt_id)},
+        {"$set": {"avg_rating": avg_rating, "review_count": review_count}}
+    )
+    print(f"[DEBUG] Update result: matched={update_result.matched_count}, modified={update_result.modified_count}")
+
+
+@router.post("/{prompt_id}/reviews", response_model=dict)
+async def create_review(
+    prompt_id: str,
+    rating: int = Query(..., ge=1, le=5, description="评分1-5"),
+    content: str = Query(..., min_length=1, max_length=500, description="评价内容"),
+    current_user: dict = Depends(get_current_user)
+):
+    """创建评价（需要已下载该提示词）"""
+    prompts_collection = get_collection("public_prompts")
+    reviews_collection = get_collection("public_prompt_reviews")
+    downloads_collection = get_collection("public_prompt_downloads")
+    users_collection = get_collection("users")
+    
+    # 验证提示词存在
+    try:
+        prompt = await prompts_collection.find_one({"_id": ObjectId(prompt_id), "status": "approved"})
+    except:
+        raise HTTPException(status_code=400, detail="无效的提示词 ID")
+    
+    if not prompt:
+        raise HTTPException(status_code=404, detail="提示词不存在")
+    
+    user_id = ObjectId(current_user["id"])
+    
+    # 验证已下载（作者可以直接评价自己的提示词）
+    is_author = prompt.get("author_id") == user_id
+    if not is_author:
+        download_record = await downloads_collection.find_one({
+            "prompt_id": ObjectId(prompt_id),
+            "user_id": user_id
+        })
+        if not download_record:
+            raise HTTPException(status_code=403, detail="请先下载该提示词后再评价")
+    
+    # 检查是否已评价
+    existing_review = await reviews_collection.find_one({
+        "prompt_id": ObjectId(prompt_id),
+        "user_id": user_id
+    })
+    if existing_review:
+        raise HTTPException(status_code=400, detail="您已经评价过该提示词")
+    
+    # 获取用户信息
+    user = await users_collection.find_one({"_id": user_id})
+    user_name = user.get("username", "匿名") if user else "匿名"
+    
+    # 过滤敏感词
+    filtered_content = filter_sensitive_words(content)
+    
+    now = datetime.utcnow()
+    new_review = {
+        "prompt_id": ObjectId(prompt_id),
+        "user_id": user_id,
+        "user_name": user_name,
+        "rating": rating,
+        "content": filtered_content,
+        "like_count": 0,
+        "liked_by": [],
+        "author_reply": None,
+        "author_reply_at": None,
+        "is_reported": False,
+        "report_count": 0,
+        "status": "approved",
+        "created_at": now,
+        "updated_at": now
+    }
+    
+    result = await reviews_collection.insert_one(new_review)
+    new_review["_id"] = result.inserted_id
+    
+    # 更新提示词的平均评分
+    await update_prompt_rating(prompt_id)
+    
+    # 更新下载记录标记已评价
+    if not is_author:
+        await downloads_collection.update_one(
+            {"prompt_id": ObjectId(prompt_id), "user_id": user_id},
+            {"$set": {"has_reviewed": True}}
+        )
+    
+    return {
+        "message": "评价成功",
+        "review": serialize_review(new_review, current_user["id"])
+    }
+
+
+@router.get("/{prompt_id}/reviews", response_model=dict)
+async def get_reviews(
+    prompt_id: str,
+    sort_by: str = Query("latest", regex="^(latest|likes)$", description="排序方式"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=50),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取提示词的评价列表"""
+    reviews_collection = get_collection("public_prompt_reviews")
+    
+    try:
+        ObjectId(prompt_id)
+    except:
+        raise HTTPException(status_code=400, detail="无效的提示词 ID")
+    
+    # 构建查询
+    query = {"prompt_id": ObjectId(prompt_id), "status": "approved"}
+    
+    # 排序
+    if sort_by == "likes":
+        sort = [("like_count", -1), ("created_at", -1)]
+    else:
+        sort = [("created_at", -1)]
+    
+    # 分页
+    skip = (page - 1) * page_size
+    
+    # 查询
+    total = await reviews_collection.count_documents(query)
+    cursor = reviews_collection.find(query).sort(sort).skip(skip).limit(page_size)
+    
+    reviews = []
+    async for review in cursor:
+        reviews.append(serialize_review(review, current_user["id"]))
+    
+    return {
+        "items": reviews,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }
+
+
+@router.get("/{prompt_id}/my-review", response_model=dict)
+async def get_my_review(
+    prompt_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """获取我对该提示词的评价"""
+    reviews_collection = get_collection("public_prompt_reviews")
+    downloads_collection = get_collection("public_prompt_downloads")
+    
+    try:
+        ObjectId(prompt_id)
+    except:
+        raise HTTPException(status_code=400, detail="无效的提示词 ID")
+    
+    user_id = ObjectId(current_user["id"])
+    
+    # 查询我的评价
+    review = await reviews_collection.find_one({
+        "prompt_id": ObjectId(prompt_id),
+        "user_id": user_id
+    })
+    
+    # 查询是否已下载
+    download_record = await downloads_collection.find_one({
+        "prompt_id": ObjectId(prompt_id),
+        "user_id": user_id
+    })
+    
+    return {
+        "review": serialize_review(review, current_user["id"]) if review else None,
+        "has_downloaded": download_record is not None,
+        "can_review": download_record is not None and review is None
+    }
+
+
+@router.post("/reviews/{review_id}/like", response_model=dict)
+async def like_review(
+    review_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """点赞评论"""
+    reviews_collection = get_collection("public_prompt_reviews")
+    
+    try:
+        review = await reviews_collection.find_one({"_id": ObjectId(review_id)})
+    except:
+        raise HTTPException(status_code=400, detail="无效的评论 ID")
+    
+    if not review:
+        raise HTTPException(status_code=404, detail="评论不存在")
+    
+    user_id = ObjectId(current_user["id"])
+    liked_by = review.get("liked_by", [])
+    
+    if user_id in liked_by:
+        raise HTTPException(status_code=400, detail="已经点赞过")
+    
+    await reviews_collection.update_one(
+        {"_id": ObjectId(review_id)},
+        {
+            "$push": {"liked_by": user_id},
+            "$inc": {"like_count": 1}
+        }
+    )
+    
+    return {"message": "点赞成功", "like_count": review.get("like_count", 0) + 1}
+
+
+@router.delete("/reviews/{review_id}/like", response_model=dict)
+async def unlike_review(
+    review_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """取消点赞评论"""
+    reviews_collection = get_collection("public_prompt_reviews")
+    
+    try:
+        review = await reviews_collection.find_one({"_id": ObjectId(review_id)})
+    except:
+        raise HTTPException(status_code=400, detail="无效的评论 ID")
+    
+    if not review:
+        raise HTTPException(status_code=404, detail="评论不存在")
+    
+    user_id = ObjectId(current_user["id"])
+    liked_by = review.get("liked_by", [])
+    
+    if user_id not in liked_by:
+        raise HTTPException(status_code=400, detail="尚未点赞")
+    
+    await reviews_collection.update_one(
+        {"_id": ObjectId(review_id)},
+        {
+            "$pull": {"liked_by": user_id},
+            "$inc": {"like_count": -1}
+        }
+    )
+    
+    return {"message": "取消点赞", "like_count": max(0, review.get("like_count", 1) - 1)}
+
+
+@router.post("/reviews/{review_id}/reply", response_model=dict)
+async def reply_to_review(
+    review_id: str,
+    reply: str = Query(..., min_length=1, max_length=500, description="回复内容"),
+    current_user: dict = Depends(get_current_user)
+):
+    """作者回复评论"""
+    reviews_collection = get_collection("public_prompt_reviews")
+    prompts_collection = get_collection("public_prompts")
+    
+    try:
+        review = await reviews_collection.find_one({"_id": ObjectId(review_id)})
+    except:
+        raise HTTPException(status_code=400, detail="无效的评论 ID")
+    
+    if not review:
+        raise HTTPException(status_code=404, detail="评论不存在")
+    
+    # 验证是提示词作者
+    prompt = await prompts_collection.find_one({"_id": review["prompt_id"]})
+    if not prompt or str(prompt.get("author_id")) != current_user["id"]:
+        raise HTTPException(status_code=403, detail="只有提示词作者可以回复")
+    
+    # 过滤敏感词
+    filtered_reply = filter_sensitive_words(reply)
+    
+    now = datetime.utcnow()
+    await reviews_collection.update_one(
+        {"_id": ObjectId(review_id)},
+        {"$set": {
+            "author_reply": filtered_reply,
+            "author_reply_at": now,
+            "updated_at": now
+        }}
+    )
+    
+    # TODO: 发送通知给评论用户
+    
+    return {"message": "回复成功"}
+
+
+@router.post("/reviews/{review_id}/report", response_model=dict)
+async def report_review(
+    review_id: str,
+    reason: str = Query(..., min_length=1, max_length=200, description="举报原因"),
+    current_user: dict = Depends(get_current_user)
+):
+    """举报评论"""
+    reviews_collection = get_collection("public_prompt_reviews")
+    reports_collection = get_collection("review_reports")
+    
+    try:
+        review = await reviews_collection.find_one({"_id": ObjectId(review_id)})
+    except:
+        raise HTTPException(status_code=400, detail="无效的评论 ID")
+    
+    if not review:
+        raise HTTPException(status_code=404, detail="评论不存在")
+    
+    user_id = ObjectId(current_user["id"])
+    
+    # 检查是否已举报
+    existing_report = await reports_collection.find_one({
+        "review_id": ObjectId(review_id),
+        "reporter_id": user_id
+    })
+    if existing_report:
+        raise HTTPException(status_code=400, detail="您已举报过该评论")
+    
+    now = datetime.utcnow()
+    await reports_collection.insert_one({
+        "review_id": ObjectId(review_id),
+        "reporter_id": user_id,
+        "reason": reason,
+        "status": "pending",
+        "created_at": now
+    })
+    
+    # 更新评论的举报状态
+    await reviews_collection.update_one(
+        {"_id": ObjectId(review_id)},
+        {
+            "$set": {"is_reported": True},
+            "$inc": {"report_count": 1}
+        }
+    )
+    
+    return {"message": "举报已提交，我们会尽快处理"}
+
+
+# ============ 管理员评价管理 API ============
+
+@router.get("/admin/reviews", response_model=dict)
+async def get_admin_reviews(
+    status: Optional[str] = Query(None, regex="^(approved|pending|reported)$"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: dict = Depends(get_current_user)
+):
+    """获取所有评论列表（管理员）"""
+    await check_admin(current_user)
+    
+    reviews_collection = get_collection("public_prompt_reviews")
+    
+    query = {}
+    if status == "reported":
+        query["is_reported"] = True
+    elif status:
+        query["status"] = status
+    
+    skip = (page - 1) * page_size
+    total = await reviews_collection.count_documents(query)
+    
+    cursor = reviews_collection.find(query).sort("created_at", -1).skip(skip).limit(page_size)
+    
+    reviews = []
+    async for review in cursor:
+        reviews.append(serialize_review(review))
+    
+    return {
+        "items": reviews,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }
+
+
+@router.delete("/admin/reviews/{review_id}", response_model=dict)
+async def delete_review(
+    review_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """删除评论（管理员）"""
+    await check_admin(current_user)
+    
+    reviews_collection = get_collection("public_prompt_reviews")
+    
+    try:
+        review = await reviews_collection.find_one({"_id": ObjectId(review_id)})
+    except:
+        raise HTTPException(status_code=400, detail="无效的评论 ID")
+    
+    if not review:
+        raise HTTPException(status_code=404, detail="评论不存在")
+    
+    prompt_id = str(review["prompt_id"])
+    
+    await reviews_collection.delete_one({"_id": ObjectId(review_id)})
+    
+    # 更新提示词评分
+    await update_prompt_rating(prompt_id)
+    
+    return {"message": "删除成功", "id": review_id}
+
+
+@router.get("/admin/review-stats", response_model=dict)
+async def get_review_stats(current_user: dict = Depends(get_current_user)):
+    """获取评价统计（管理员）"""
+    await check_admin(current_user)
+    
+    reviews_collection = get_collection("public_prompt_reviews")
+    reports_collection = get_collection("review_reports")
+    
+    total_reviews = await reviews_collection.count_documents({})
+    reported_reviews = await reviews_collection.count_documents({"is_reported": True})
+    pending_reports = await reports_collection.count_documents({"status": "pending"})
+    
+    # 计算总体平均分
+    pipeline = [
+        {"$match": {"status": "approved"}},
+        {"$group": {"_id": None, "avg": {"$avg": "$rating"}}}
+    ]
+    result = await reviews_collection.aggregate(pipeline).to_list(1)
+    overall_avg = round(result[0]["avg"], 2) if result else 0
+    
+    return {
+        "total_reviews": total_reviews,
+        "reported_reviews": reported_reviews,
+        "pending_reports": pending_reports,
+        "overall_avg_rating": overall_avg
+    }

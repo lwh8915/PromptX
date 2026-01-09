@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { publicPromptApi, type PublicPrompt, type PublicPromptCreate } from '../api/client';
 import Toast from '../components/ui/Toast';
+import StarRating from '../components/ui/StarRating';
+import ReviewSection from '../components/shared/ReviewSection';
 
 type SortBy = 'latest' | 'likes' | 'downloads';
 
@@ -353,6 +355,16 @@ export default function PublicLibrary() {
                                     ))}
                                 </div>
 
+                                {/* Rating */}
+                                {prompt.review_count > 0 && (
+                                    <div className="flex items-center gap-1 mb-2">
+                                        <StarRating rating={prompt.avg_rating} readonly size="sm" />
+                                        <span className="text-xs text-[var(--text-muted)]">
+                                            ({prompt.review_count})
+                                        </span>
+                                    </div>
+                                )}
+
                                 {/* Footer with Stats */}
                                 <div className="flex items-center justify-between text-xs text-[var(--text-muted)] mb-3">
                                     <span className="flex items-center gap-1">
@@ -367,8 +379,8 @@ export default function PublicLibrary() {
                                             onClick={(e) => handleLike(e, prompt)}
                                             disabled={likingId === prompt.id}
                                             className={`flex items-center gap-1 transition-colors ${prompt.is_liked
-                                                    ? 'text-red-500'
-                                                    : 'hover:text-red-500'
+                                                ? 'text-red-500'
+                                                : 'hover:text-red-500'
                                                 }`}
                                         >
                                             <svg
@@ -477,8 +489,8 @@ export default function PublicLibrary() {
                                         onClick={(e) => handleLike(e, viewingPrompt)}
                                         disabled={likingId === viewingPrompt.id}
                                         className={`flex items-center gap-1 transition-colors ${viewingPrompt.is_liked
-                                                ? 'text-red-500'
-                                                : 'hover:text-red-500'
+                                            ? 'text-red-500'
+                                            : 'hover:text-red-500'
                                             }`}
                                     >
                                         <svg
@@ -494,6 +506,12 @@ export default function PublicLibrary() {
                                     <span>下载量：{viewingPrompt.download_count}</span>
                                 </div>
                             </div>
+
+                            {/* Review Section */}
+                            <ReviewSection
+                                prompt={viewingPrompt}
+                                onToast={(message, type) => setToast({ message, type })}
+                            />
                         </div>
 
                         {/* Modal Footer */}

@@ -237,6 +237,8 @@ export interface PublicPrompt {
     download_count: number;
     like_count: number;
     is_liked: boolean;
+    avg_rating: number;
+    review_count: number;
     created_at: string;
     updated_at: string;
 }
@@ -254,6 +256,30 @@ export interface PublicPromptCreate {
     description?: string;
     tags: string[];
     category: string;
+}
+
+// ============ 评价系统接口 ============
+export interface Review {
+    id: string;
+    prompt_id: string;
+    user_id: string;
+    user_name: string;
+    rating: number;
+    content: string;
+    like_count: number;
+    is_liked: boolean;
+    author_reply?: string;
+    author_reply_at?: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ReviewListResponse {
+    items: Review[];
+    total: number;
+    page: number;
+    page_size: number;
 }
 
 export const publicPromptApi = {
@@ -394,6 +420,74 @@ export const publicPromptApi = {
     // 重新排序分类
     reorderCategories: async (categoryIds: string[]): Promise<{ message: string }> => {
         const response = await api.put<{ message: string }>('/public-prompts/admin/categories/reorder', categoryIds);
+        return response.data;
+    },
+
+    // ============ 评价系统 ============
+
+    // 创建评价
+    createReview: async (promptId: string, rating: number, content: string): Promise<{ message: string; review: Review }> => {
+        const response = await api.post<{ message: string; review: Review }>(`/public-prompts/${promptId}/reviews`, null, {
+            params: { rating, content }
+        });
+        return response.data;
+    },
+
+    // 获取评价列表
+    getReviews: async (promptId: string, params?: { sort_by?: 'latest' | 'likes'; page?: number; page_size?: number }): Promise<ReviewListResponse> => {
+        const response = await api.get<ReviewListResponse>(`/public-prompts/${promptId}/reviews`, { params });
+        return response.data;
+    },
+
+    // 获取我的评价
+    getMyReview: async (promptId: string): Promise<{ review: Review | null; has_downloaded: boolean; can_review: boolean }> => {
+        const response = await api.get<{ review: Review | null; has_downloaded: boolean; can_review: boolean }>(`/public-prompts/${promptId}/my-review`);
+        return response.data;
+    },
+
+    // 点赞评论
+    likeReview: async (reviewId: string): Promise<{ message: string; like_count: number }> => {
+        const response = await api.post<{ message: string; like_count: number }>(`/public-prompts/reviews/${reviewId}/like`);
+        return response.data;
+    },
+
+    // 取消点赞评论
+    unlikeReview: async (reviewId: string): Promise<{ message: string; like_count: number }> => {
+        const response = await api.delete<{ message: string; like_count: number }>(`/public-prompts/reviews/${reviewId}/like`);
+        return response.data;
+    },
+
+    // 作者回复评论
+    replyToReview: async (reviewId: string, reply: string): Promise<{ message: string }> => {
+        const response = await api.post<{ message: string }>(`/public-prompts/reviews/${reviewId}/reply`, null, {
+            params: { reply }
+        });
+        return response.data;
+    },
+
+    // 举报评论
+    reportReview: async (reviewId: string, reason: string): Promise<{ message: string }> => {
+        const response = await api.post<{ message: string }>(`/public-prompts/reviews/${reviewId}/report`, null, {
+            params: { reason }
+        });
+        return response.data;
+    },
+
+    // 管理员获取评论列表
+    getAdminReviews: async (params?: { status?: string; page?: number; page_size?: number }): Promise<ReviewListResponse> => {
+        const response = await api.get<ReviewListResponse>('/public-prompts/admin/reviews', { params });
+        return response.data;
+    },
+
+    // 管理员删除评论
+    deleteReview: async (reviewId: string): Promise<{ message: string; id: string }> => {
+        const response = await api.delete<{ message: string; id: string }>(`/public-prompts/admin/reviews/${reviewId}`);
+        return response.data;
+    },
+
+    // 管理员获取评价统计
+    getReviewStats: async (): Promise<{ total_reviews: number; reported_reviews: number; pending_reports: number; overall_avg_rating: number }> => {
+        const response = await api.get<{ total_reviews: number; reported_reviews: number; pending_reports: number; overall_avg_rating: number }>('/public-prompts/admin/review-stats');
         return response.data;
     }
 };
