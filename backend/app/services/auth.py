@@ -88,5 +88,6 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         "email": user["email"],
         "username": user["username"],
         "avatar": user.get("avatar"),
+        "is_admin": user.get("is_admin", False),
         "created_at": user["created_at"]
     }

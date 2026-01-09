@@ -33,3 +33,6 @@ backend/.pytest_cache/
 .env
 .env.docker
 
+# AI Agent folders (local only)
+.shared/
+.agent/

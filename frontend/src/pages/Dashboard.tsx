@@ -124,6 +124,40 @@ export default function Dashboard() {
         }
     };
 
+    const handleShare = async (prompt: Prompt) => {
+        try {
+            const { publicPromptApi } = await import('../api/client');
+
+            // 获取上传状态
+            const status = await publicPromptApi.getUploadStatus();
+
+            // 构建确认消息
+            let confirmMessage = `确定要将 "${prompt.title}" 分享到公共模板库吗？\n\n`;
+            confirmMessage += `📊 今日已上传: ${status.today_count}/${status.daily_limit}\n`;
+
+            if (status.needs_review) {
+                confirmMessage += `\n⚠️ 您今日已超过 ${status.daily_limit} 个免审核额度\n`;
+                confirmMessage += `此提示词需要管理员审核后才能公开显示`;
+            } else {
+                confirmMessage += `\n✅ 还剩 ${status.auto_approve_remaining} 个免审核额度\n`;
+                confirmMessage += `此提示词将直接公开显示`;
+            }
+
+            if (!confirm(confirmMessage)) return;
+
+            await publicPromptApi.uploadFromPersonal(prompt.id);
+
+            if (status.needs_review) {
+                setToast({ message: '已提交，等待管理员审核', type: 'success' });
+            } else {
+                setToast({ message: '已分享到公共模板库', type: 'success' });
+            }
+        } catch (error: any) {
+            const message = error.response?.data?.detail || '分享失败';
+            setToast({ message, type: 'error' });
+        }
+    };
+
     const handleNewPrompt = () => {
         setEditingPrompt(null);
         setIsModalOpen(true);
@@ -370,6 +404,7 @@ export default function Dashboard() {
                                         onEdit={() => handleEdit(prompt)}
                                         onDelete={() => handleDelete(prompt)}
                                         onViewHistory={() => setVersionHistoryPrompt(prompt)}
+                                        onShare={() => handleShare(prompt)}
                                         style={{ animationDelay: `${index * 50}ms` }}
                                     />
                                 ))}
@@ -386,6 +421,7 @@ export default function Dashboard() {
                                         onEdit={() => handleEdit(prompt)}
                                         onDelete={() => handleDelete(prompt)}
                                         onViewHistory={() => setVersionHistoryPrompt(prompt)}
+                                        onShare={() => handleShare(prompt)}
                                         style={{ animationDelay: `${index * 30}ms` }}
                                     />
                                 ))}

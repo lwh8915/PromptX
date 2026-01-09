@@ -220,6 +220,156 @@ export const promptApi = {
 };
 
 export default api;
+
+// ============ 公共提示词 API ============
+export interface PublicPrompt {
+    id: string;
+    title: string;
+    content: string;
+    description?: string;
+    tags: string[];
+    category: string;
+    author_id: string;
+    author_name: string;
+    source_prompt_id?: string;
+    status: 'pending' | 'approved' | 'rejected';
+    review_note?: string;
+    download_count: number;
+    like_count: number;
+    is_liked: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface PublicPromptListResponse {
+    items: PublicPrompt[];
+    total: number;
+    page: number;
+    page_size: number;
+}
+
+export interface PublicPromptCreate {
+    title: string;
+    content: string;
+    description?: string;
+    tags: string[];
+    category: string;
+}
+
+export const publicPromptApi = {
+    // 获取分类列表
+    getCategories: async (): Promise<string[]> => {
+        const response = await api.get<string[]>('/public-prompts/categories');
+        return response.data;
+    },
+
+    // 获取公共提示词列表
+    getAll: async (params?: { category?: string; search?: string; sort_by?: 'latest' | 'likes' | 'downloads'; page?: number; page_size?: number }): Promise<PublicPromptListResponse> => {
+        const response = await api.get<PublicPromptListResponse>('/public-prompts', { params });
+        return response.data;
+    },
+
+    // 获取我的提交
+    getMySubmissions: async (page: number = 1, page_size: number = 20): Promise<PublicPromptListResponse> => {
+        const response = await api.get<PublicPromptListResponse>('/public-prompts/my-submissions', {
+            params: { page, page_size }
+        });
+        return response.data;
+    },
+
+    // 获取单个公共提示词
+    getById: async (id: string): Promise<PublicPrompt> => {
+        const response = await api.get<PublicPrompt>(`/public-prompts/${id}`);
+        return response.data;
+    },
+
+    // 直接创建公共提示词
+    create: async (data: PublicPromptCreate): Promise<PublicPrompt> => {
+        const response = await api.post<PublicPrompt>('/public-prompts', data);
+        return response.data;
+    },
+
+    // 从个人库上传
+    uploadFromPersonal: async (promptId: string): Promise<PublicPrompt> => {
+        const response = await api.post<PublicPrompt>(`/public-prompts/upload/${promptId}`);
+        return response.data;
+    },
+
+    // 下载到个人库
+    download: async (id: string): Promise<{ message: string; prompt_id: string }> => {
+        const response = await api.post<{ message: string; prompt_id: string }>(`/public-prompts/${id}/download`);
+        return response.data;
+    },
+
+    // 点赞
+    like: async (id: string): Promise<{ message: string; like_count: number }> => {
+        const response = await api.post<{ message: string; like_count: number }>(`/public-prompts/${id}/like`);
+        return response.data;
+    },
+
+    // 取消点赞
+    unlike: async (id: string): Promise<{ message: string; like_count: number }> => {
+        const response = await api.delete<{ message: string; like_count: number }>(`/public-prompts/${id}/like`);
+        return response.data;
+    },
+
+    // 获取上传状态
+    getUploadStatus: async (): Promise<{
+        today_count: number;
+        daily_limit: number;
+        auto_approve_remaining: number;
+        needs_review: boolean;
+    }> => {
+        const response = await api.get<{
+            today_count: number;
+            daily_limit: number;
+            auto_approve_remaining: number;
+            needs_review: boolean;
+        }>('/public-prompts/my-upload-status');
+        return response.data;
+    },
+
+    // ============ 管理员 API ============
+
+    // 获取待审核列表
+    getPending: async (page: number = 1, page_size: number = 20): Promise<PublicPromptListResponse> => {
+        const response = await api.get<PublicPromptListResponse>('/public-prompts/admin/pending', {
+            params: { page, page_size }
+        });
+        return response.data;
+    },
+
+    // 审核通过
+    approve: async (id: string): Promise<PublicPrompt> => {
+        const response = await api.post<PublicPrompt>(`/public-prompts/admin/${id}/approve`);
+        return response.data;
+    },
+
+    // 审核拒绝
+    reject: async (id: string, note?: string): Promise<PublicPrompt> => {
+        const response = await api.post<PublicPrompt>(`/public-prompts/admin/${id}/reject`, { note });
+        return response.data;
+    },
+
+    // 获取统计信息
+    getStats: async (): Promise<{ pending: number; approved: number; rejected: number; total: number }> => {
+        const response = await api.get<{ pending: number; approved: number; rejected: number; total: number }>('/public-prompts/admin/stats');
+        return response.data;
+    },
+
+    // 获取所有提示词列表（管理员）
+    getAllAdmin: async (params: { status?: string; search?: string; page?: number; page_size?: number } = {}): Promise<PublicPromptListResponse> => {
+        const response = await api.get<PublicPromptListResponse>('/public-prompts/admin/all', { params });
+        return response.data;
+    },
+
+    // 删除提示词（管理员）
+    delete: async (id: string): Promise<{ message: string; id: string }> => {
+        const response = await api.delete<{ message: string; id: string }>(`/public-prompts/admin/${id}`);
+        return response.data;
+    }
+};
+
 // 部署 API
 export const deployApi = {
     triggerDeploy: async (webhook_url?: string, webhook_token?: string): Promise<{ message: string; status: string }> => {

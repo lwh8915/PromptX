@@ -37,6 +37,7 @@ class UserResponse(UserBase):
     """用户响应模型"""
     id: str
     avatar: Optional[str] = None
+    is_admin: bool = False  # 管理员角色
     created_at: datetime
     
     class Config:
@@ -49,6 +50,7 @@ class UserInDB(UserBase):
     security_question: str
     security_answer_hash: str
     avatar: Optional[str] = None
+    is_admin: bool = False  # 管理员角色
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

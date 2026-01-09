@@ -40,6 +40,11 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(categories.router, prefix="/api/categories", tags=["分类"])
 app.include_router(prompts.router, prefix="/api/prompts", tags=["提示词"])
+
+# 公共提示词库
+from .routers import public_prompts
+app.include_router(public_prompts.router, prefix="/api/public-prompts", tags=["公共库"])
+
 # 自动注册 deploy（注意: deploy需要在 docker 环境且安装了docker库才生效，建议加 try-except）
 try:
     from .routers import deploy

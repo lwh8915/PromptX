@@ -110,6 +110,7 @@ async def register(user_data: UserCreate):
             email=user_data.email,
             username=user_data.username,
             avatar=None,
+            is_admin=False,
             created_at=now
         )
     )
@@ -144,6 +145,7 @@ async def login(credentials: UserLogin):
             email=user["email"],
             username=user["username"],
             avatar=user.get("avatar"),
+            is_admin=user.get("is_admin", False),
             created_at=user["created_at"]
         )
     )
@@ -279,5 +281,6 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
         email=current_user["email"],
         username=current_user["username"],
         avatar=current_user.get("avatar"),
+        is_admin=current_user.get("is_admin", False),
         created_at=current_user["created_at"]
     )

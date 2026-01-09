@@ -10,6 +10,7 @@ export interface User {
     email: string;
     username: string;
     avatar?: string;
+    is_admin?: boolean;  // 管理员角色
     created_at: string;
 }
 

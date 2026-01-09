@@ -9,6 +9,7 @@ interface PromptCardProps {
     onEdit: () => void;
     onDelete: () => void;
     onViewHistory?: () => void;
+    onShare?: () => void;  // 分享到公共库
     viewMode?: ViewMode;
     style?: React.CSSProperties;
 }
@@ -17,7 +18,7 @@ interface PromptCardProps {
  * PromptCard - 提示词卡片/列表组件
  * 支持卡片和列表两种展示形式
  */
-export default function PromptCard({ prompt, onClick, onCopy, onEdit, onDelete, onViewHistory, viewMode = 'card', style }: PromptCardProps) {
+export default function PromptCard({ prompt, onClick, onCopy, onEdit, onDelete, onViewHistory, onShare, viewMode = 'card', style }: PromptCardProps) {
     // 列表视图
     if (viewMode === 'list') {
         return (
@@ -48,9 +49,12 @@ export default function PromptCard({ prompt, onClick, onCopy, onEdit, onDelete, 
                     <div className="flex items-center gap-1 flex-shrink-0">
                         <button
                             onClick={onCopy}
-                            className="btn btn-primary px-3 py-1.5 text-sm"
+                            className="btn btn-secondary p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="复制"
                         >
-                            复制
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
                         </button>
                         <button
                             onClick={onEdit}
@@ -69,6 +73,17 @@ export default function PromptCard({ prompt, onClick, onCopy, onEdit, onDelete, 
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </button>
+                        )}
+                        {onShare && (
+                            <button
+                                onClick={onShare}
+                                className="btn btn-ghost p-1.5 text-[var(--text-tertiary)] hover:text-green-400 opacity-0 group-hover:opacity-100 transition-all"
+                                title="分享到公共库"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.368-2.684 3 3 0 00-5.368 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                                 </svg>
                             </button>
                         )}
@@ -150,14 +165,15 @@ export default function PromptCard({ prompt, onClick, onCopy, onEdit, onDelete, 
             {/* Actions */}
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 {/* 一键复制按钮 - 核心功能 */}
+                {/* 一键复制按钮 */}
                 <button
                     onClick={onCopy}
-                    className="btn btn-primary flex-1 py-2.5 text-sm"
+                    className="btn btn-secondary p-2.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="复制"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
-                    复制
                 </button>
 
                 {/* 编辑按钮 */}
@@ -180,6 +196,18 @@ export default function PromptCard({ prompt, onClick, onCopy, onEdit, onDelete, 
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </button>
+                )}
+                {/* 分享到公共库按钮 */}
+                {onShare && (
+                    <button
+                        onClick={onShare}
+                        className="btn btn-ghost p-2.5 text-[var(--text-tertiary)] hover:text-green-400 opacity-0 group-hover:opacity-100 transition-all"
+                        title="分享到公共库"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.368-2.684 3 3 0 00-5.368 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                         </svg>
                     </button>
                 )}

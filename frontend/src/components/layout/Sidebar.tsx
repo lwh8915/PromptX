@@ -425,6 +425,36 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
                         </span>
                     </button>
 
+                    {/* 公共模板库 */}
+                    <a
+                        href="/public-library"
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm mb-1 transition-all text-[var(--text-secondary)] hover:bg-[var(--bg-glass)] hover:text-[var(--text-primary)] cursor-pointer"
+                    >
+                        <span className="flex items-center gap-2">
+                            <span>🌐</span>
+                            <span>公共模板库</span>
+                        </span>
+                        <svg className="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                    </a>
+
+                    {/* 管理员审核 - 仅管理员可见 */}
+                    {user?.is_admin && (
+                        <a
+                            href="/admin/review"
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm mb-1 transition-all text-[var(--text-secondary)] hover:bg-[var(--bg-glass)] hover:text-[var(--text-primary)] cursor-pointer"
+                        >
+                            <span className="flex items-center gap-2">
+                                <span>⚙️</span>
+                                <span>审核中心</span>
+                            </span>
+                            <svg className="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                        </a>
+                    )}
+
                     {/* 我的收藏 */}
                     <button
                         onClick={viewFavorites}
@@ -523,12 +553,12 @@ export default function Sidebar({ isOpen, onToggle, user, onLogout }: SidebarPro
                             }}
                             disabled={isDeploying}
                             className={`flex-1 btn text-xs flex items-center justify-center gap-2 py-2 rounded-lg transition-all ${isDeploying
-                                    ? deployStatus === 'error'
-                                        ? 'bg-red-500/20 border-red-500/50 text-red-400 cursor-not-allowed'
-                                        : deployStatus === 'success'
-                                            ? 'bg-green-500/20 border-green-500/50 text-green-400'
-                                            : 'bg-blue-500/20 border-blue-500/50 text-blue-400 cursor-wait'
-                                    : 'btn-ghost text-[var(--text-secondary)] hover:text-[var(--primary-400)] border border-dashed border-[var(--border-secondary)] hover:border-[var(--primary-500)]'
+                                ? deployStatus === 'error'
+                                    ? 'bg-red-500/20 border-red-500/50 text-red-400 cursor-not-allowed'
+                                    : deployStatus === 'success'
+                                        ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                                        : 'bg-blue-500/20 border-blue-500/50 text-blue-400 cursor-wait'
+                                : 'btn-ghost text-[var(--text-secondary)] hover:text-[var(--primary-400)] border border-dashed border-[var(--border-secondary)] hover:border-[var(--primary-500)]'
                                 }`}
                         >
                             {isDeploying ? (

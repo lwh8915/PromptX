@@ -5,6 +5,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
+import PublicLibrary from './pages/PublicLibrary';
+import AdminReview from './pages/AdminReview';
 
 // 受保护路由组件
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -67,6 +69,22 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/public-library"
+          element={
+            <ProtectedRoute>
+              <PublicLibrary />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/review"
+          element={
+            <ProtectedRoute>
+              <AdminReview />
             </ProtectedRoute>
           }
         />
