@@ -4,11 +4,18 @@ import { useAuthStore } from '../stores/authStore';
 import { publicPromptApi, type PublicPrompt } from '../api/client';
 import Toast from '../components/ui/Toast';
 
-type TabType = 'pending' | 'approved' | 'rejected' | 'all';
+type TabType = 'pending' | 'approved' | 'rejected' | 'all' | 'categories';
+
+interface Category {
+    id: string;
+    name: string;
+    sort_order: number;
+    created_at: string;
+}
 
 /**
  * AdminReview - 管理员审核中心
- * 审核待发布的公共提示词 & 管理所有公共提示词
+ * 审核待发布的公共提示词 & 管理所有公共提示词 & 管理分类
  */
 export default function AdminReview() {
     const navigate = useNavigate();
@@ -21,6 +28,11 @@ export default function AdminReview() {
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
     const pageSize = 20;
+
+    // 分类管理状态
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
 
     // 筛选状态
     const [activeTab, setActiveTab] = useState<TabType>('pending');
@@ -60,6 +72,8 @@ export default function AdminReview() {
 
     // 加载提示词列表
     const loadPrompts = async () => {
+        if (activeTab === 'categories') return;
+
         setIsLoading(true);
         try {
             let result;
@@ -88,6 +102,16 @@ export default function AdminReview() {
         }
     };
 
+    // 加载分类列表
+    const loadCategories = async () => {
+        try {
+            const data = await publicPromptApi.getAdminCategories();
+            setCategories(data);
+        } catch (error: any) {
+            setToast({ message: '加载分类失败', type: 'error' });
+        }
+    };
+
     useEffect(() => {
         if (isAuthenticated) {
             loadStats();
@@ -97,12 +121,16 @@ export default function AdminReview() {
     useEffect(() => {
         if (isAuthenticated) {
             setPage(1);
-            loadPrompts();
+            if (activeTab === 'categories') {
+                loadCategories();
+            } else {
+                loadPrompts();
+            }
         }
     }, [isAuthenticated, activeTab, searchQuery]);
 
     useEffect(() => {
-        if (isAuthenticated) {
+        if (isAuthenticated && activeTab !== 'categories') {
             loadPrompts();
         }
     }, [page]);
@@ -159,6 +187,95 @@ export default function AdminReview() {
         }
     };
 
+    // 创建分类
+    const handleCreateCategory = async () => {
+        if (!newCategoryName.trim()) {
+            setToast({ message: '请输入分类名称', type: 'error' });
+            return;
+        }
+
+        try {
+            await publicPromptApi.createCategory(newCategoryName.trim());
+            setToast({ message: '创建成功', type: 'success' });
+            setNewCategoryName('');
+            loadCategories();
+        } catch (error: any) {
+            setToast({ message: error.response?.data?.detail || '创建失败', type: 'error' });
+        }
+    };
+
+    // 删除分类
+    const handleDeleteCategory = async () => {
+        if (!deletingCategory) return;
+
+        try {
+            await publicPromptApi.deleteCategory(deletingCategory.id);
+            setToast({ message: '删除成功', type: 'success' });
+            setDeletingCategory(null);
+            loadCategories();
+        } catch (error: any) {
+            setToast({ message: error.response?.data?.detail || '删除失败', type: 'error' });
+        }
+    };
+
+    // 拖拽排序状态
+    const [draggedCategory, setDraggedCategory] = useState<Category | null>(null);
+    const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+    // 处理拖拽排序
+    const handleDragStart = (e: React.DragEvent, cat: Category) => {
+        setDraggedCategory(cat);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDragOver = (e: React.DragEvent, catId: string) => {
+        e.preventDefault();
+        if (draggedCategory && draggedCategory.id !== catId) {
+            setDragOverId(catId);
+        }
+    };
+
+    const handleDragLeave = () => {
+        setDragOverId(null);
+    };
+
+    const handleDrop = async (e: React.DragEvent, targetCat: Category) => {
+        e.preventDefault();
+        setDragOverId(null);
+
+        if (!draggedCategory || draggedCategory.id === targetCat.id) {
+            setDraggedCategory(null);
+            return;
+        }
+
+        // 重新排列分类
+        const newCategories = [...categories];
+        const draggedIndex = newCategories.findIndex(c => c.id === draggedCategory.id);
+        const targetIndex = newCategories.findIndex(c => c.id === targetCat.id);
+
+        // 移动元素
+        newCategories.splice(draggedIndex, 1);
+        newCategories.splice(targetIndex, 0, draggedCategory);
+
+        // 更新本地状态
+        setCategories(newCategories);
+        setDraggedCategory(null);
+
+        // 保存到服务器
+        try {
+            await publicPromptApi.reorderCategories(newCategories.map(c => c.id));
+            setToast({ message: '排序已保存', type: 'success' });
+        } catch (error: any) {
+            setToast({ message: '保存排序失败', type: 'error' });
+            loadCategories(); // 恢复原排序
+        }
+    };
+
+    const handleDragEnd = () => {
+        setDraggedCategory(null);
+        setDragOverId(null);
+    };
+
     const totalPages = Math.ceil(total / pageSize);
 
     const getStatusBadge = (status: string) => {
@@ -174,11 +291,12 @@ export default function AdminReview() {
         }
     };
 
-    const tabs: { key: TabType; label: string; count: number }[] = [
+    const tabs: { key: TabType; label: string; count?: number }[] = [
         { key: 'pending', label: '待审核', count: stats.pending },
         { key: 'approved', label: '已通过', count: stats.approved },
         { key: 'rejected', label: '已拒绝', count: stats.rejected },
         { key: 'all', label: '全部', count: stats.total },
+        { key: 'categories', label: '📂 分类管理' },
     ];
 
     return (
@@ -212,150 +330,230 @@ export default function AdminReview() {
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
                             className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === tab.key
-                                    ? 'bg-[var(--primary-500)] text-white'
-                                    : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                ? 'bg-[var(--primary-500)] text-white'
+                                : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                                 }`}
                         >
                             {tab.label}
-                            <span className={`ml-2 px-1.5 py-0.5 text-xs rounded-full ${activeTab === tab.key
+                            {tab.count !== undefined && (
+                                <span className={`ml-2 px-1.5 py-0.5 text-xs rounded-full ${activeTab === tab.key
                                     ? 'bg-white/20 text-white'
                                     : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'
-                                }`}>
-                                {tab.count}
-                            </span>
+                                    }`}>
+                                    {tab.count}
+                                </span>
+                            )}
                         </button>
                     ))}
                 </div>
 
-                {/* Search (for non-pending tabs) */}
-                {activeTab !== 'pending' && (
-                    <div className="mb-6">
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="搜索标题、内容或作者..."
-                            className="w-full max-w-md px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-500)]"
-                        />
-                    </div>
-                )}
+                {/* Categories Management Tab */}
+                {activeTab === 'categories' ? (
+                    <div className="space-y-6">
+                        {/* Add Category */}
+                        <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5">
+                            <h3 className="font-semibold text-[var(--text-primary)] mb-4">添加新分类</h3>
+                            <div className="flex gap-3">
+                                <input
+                                    type="text"
+                                    value={newCategoryName}
+                                    onChange={(e) => setNewCategoryName(e.target.value)}
+                                    placeholder="输入分类名称"
+                                    maxLength={20}
+                                    className="flex-1 px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-500)]"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
+                                />
+                                <button
+                                    onClick={handleCreateCategory}
+                                    className="px-6 py-2.5 bg-[var(--primary-500)] text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
+                                >
+                                    添加
+                                </button>
+                            </div>
+                        </div>
 
-                {/* Loading */}
-                {isLoading ? (
-                    <div className="flex items-center justify-center py-20">
-                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--primary-500)] border-t-transparent"></div>
-                    </div>
-                ) : prompts.length === 0 ? (
-                    <div className="text-center py-20">
-                        <svg className="w-16 h-16 mx-auto text-[var(--text-muted)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <p className="text-[var(--text-muted)]">暂无内容</p>
+                        {/* Category List */}
+                        <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl overflow-hidden">
+                            <div className="p-4 border-b border-[var(--border-primary)] flex items-center justify-between">
+                                <h3 className="font-semibold text-[var(--text-primary)]">当前分类 ({categories.length})</h3>
+                                <span className="text-xs text-[var(--text-muted)]">拖拽调整顺序</span>
+                            </div>
+                            <div className="divide-y divide-[var(--border-primary)]">
+                                {categories.map((cat, index) => (
+                                    <div
+                                        key={cat.id}
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, cat)}
+                                        onDragOver={(e) => handleDragOver(e, cat.id)}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={(e) => handleDrop(e, cat)}
+                                        onDragEnd={handleDragEnd}
+                                        className={`flex items-center justify-between p-4 cursor-grab active:cursor-grabbing transition-colors ${draggedCategory?.id === cat.id
+                                                ? 'opacity-50 bg-[var(--primary-500)]/10'
+                                                : dragOverId === cat.id
+                                                    ? 'bg-[var(--primary-500)]/20 border-l-4 border-[var(--primary-500)]'
+                                                    : 'hover:bg-[var(--bg-tertiary)]/50'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                                            </svg>
+                                            <span className="text-[var(--text-muted)] text-sm w-6">{index + 1}.</span>
+                                            <span className="text-[var(--text-primary)] font-medium">{cat.name}</span>
+                                            {cat.name === '其他' && (
+                                                <span className="text-xs text-[var(--text-muted)]">(默认)</span>
+                                            )}
+                                        </div>
+                                        {cat.name !== '其他' && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDeletingCategory(cat);
+                                                }}
+                                                className="px-3 py-1.5 text-sm text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                            >
+                                                删除
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 ) : (
-                    /* Prompt List */
-                    <div className="space-y-4">
-                        {prompts.map(prompt => (
-                            <div
-                                key={prompt.id}
-                                className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5"
-                            >
-                                {/* Header */}
-                                <div className="flex items-start justify-between mb-3">
-                                    <div>
-                                        <h3 className="font-semibold text-[var(--text-primary)] mb-1">
-                                            {prompt.title}
-                                        </h3>
-                                        <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                                            <span>提交者：{prompt.author_name}</span>
-                                            <span>•</span>
-                                            <span>分类：{prompt.category}</span>
-                                            <span>•</span>
-                                            <span>{new Date(prompt.created_at).toLocaleDateString()}</span>
+                    <>
+                        {/* Search (for non-pending tabs) */}
+                        {activeTab !== 'pending' && (
+                            <div className="mb-6">
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="搜索标题、内容或作者..."
+                                    className="w-full max-w-md px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-500)]"
+                                />
+                            </div>
+                        )}
+
+                        {/* Loading */}
+                        {isLoading ? (
+                            <div className="flex items-center justify-center py-20">
+                                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--primary-500)] border-t-transparent"></div>
+                            </div>
+                        ) : prompts.length === 0 ? (
+                            <div className="text-center py-20">
+                                <svg className="w-16 h-16 mx-auto text-[var(--text-muted)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <p className="text-[var(--text-muted)]">暂无内容</p>
+                            </div>
+                        ) : (
+                            /* Prompt List */
+                            <div className="space-y-4">
+                                {prompts.map(prompt => (
+                                    <div
+                                        key={prompt.id}
+                                        className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5"
+                                    >
+                                        {/* Header */}
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div>
+                                                <h3 className="font-semibold text-[var(--text-primary)] mb-1">
+                                                    {prompt.title}
+                                                </h3>
+                                                <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                                                    <span>提交者：{prompt.author_name}</span>
+                                                    <span>•</span>
+                                                    <span>分类：{prompt.category}</span>
+                                                    <span>•</span>
+                                                    <span>{new Date(prompt.created_at).toLocaleDateString()}</span>
+                                                </div>
+                                            </div>
+                                            {getStatusBadge(prompt.status)}
+                                        </div>
+
+                                        {/* Content Preview */}
+                                        <div
+                                            className="bg-[var(--bg-tertiary)] rounded-lg p-3 mb-4 cursor-pointer hover:bg-[var(--bg-tertiary)]/80 transition-colors"
+                                            onClick={() => setViewingPrompt(prompt)}
+                                        >
+                                            <pre className="whitespace-pre-wrap text-sm text-[var(--text-secondary)] line-clamp-4 font-mono">
+                                                {prompt.content}
+                                            </pre>
+                                            <div className="text-xs text-[var(--primary-400)] mt-2">点击查看完整内容</div>
+                                        </div>
+
+                                        {/* Tags */}
+                                        {prompt.tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mb-4">
+                                                {prompt.tags.map(tag => (
+                                                    <span
+                                                        key={tag}
+                                                        className="px-2 py-0.5 text-xs bg-[var(--primary-500)]/10 text-[var(--primary-400)] rounded-full"
+                                                    >
+                                                        {tag}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Actions */}
+                                        <div className="flex gap-3">
+                                            {prompt.status === 'pending' && (
+                                                <>
+                                                    <button
+                                                        onClick={() => handleApprove(prompt)}
+                                                        disabled={processingId === prompt.id}
+                                                        className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                                                    >
+                                                        {processingId === prompt.id ? '处理中...' : '✓ 通过'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setRejectingPrompt(prompt)}
+                                                        disabled={processingId === prompt.id}
+                                                        className="flex-1 py-2.5 bg-red-600/10 hover:bg-red-600/20 text-red-500 rounded-lg font-medium transition-colors disabled:opacity-50"
+                                                    >
+                                                        ✗ 拒绝
+                                                    </button>
+                                                </>
+                                            )}
+                                            <button
+                                                onClick={() => setDeletingPrompt(prompt)}
+                                                disabled={processingId === prompt.id}
+                                                className="py-2.5 px-4 bg-[var(--bg-tertiary)] hover:bg-red-600/10 text-[var(--text-secondary)] hover:text-red-500 rounded-lg font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                🗑️ 删除
+                                            </button>
                                         </div>
                                     </div>
-                                    {getStatusBadge(prompt.status)}
-                                </div>
-
-                                {/* Content Preview */}
-                                <div
-                                    className="bg-[var(--bg-tertiary)] rounded-lg p-3 mb-4 cursor-pointer hover:bg-[var(--bg-tertiary)]/80 transition-colors"
-                                    onClick={() => setViewingPrompt(prompt)}
-                                >
-                                    <pre className="whitespace-pre-wrap text-sm text-[var(--text-secondary)] line-clamp-4 font-mono">
-                                        {prompt.content}
-                                    </pre>
-                                    <div className="text-xs text-[var(--primary-400)] mt-2">点击查看完整内容</div>
-                                </div>
-
-                                {/* Tags */}
-                                {prompt.tags.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mb-4">
-                                        {prompt.tags.map(tag => (
-                                            <span
-                                                key={tag}
-                                                className="px-2 py-0.5 text-xs bg-[var(--primary-500)]/10 text-[var(--primary-400)] rounded-full"
-                                            >
-                                                {tag}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Actions */}
-                                <div className="flex gap-3">
-                                    {prompt.status === 'pending' && (
-                                        <>
-                                            <button
-                                                onClick={() => handleApprove(prompt)}
-                                                disabled={processingId === prompt.id}
-                                                className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-                                            >
-                                                {processingId === prompt.id ? '处理中...' : '✓ 通过'}
-                                            </button>
-                                            <button
-                                                onClick={() => setRejectingPrompt(prompt)}
-                                                disabled={processingId === prompt.id}
-                                                className="flex-1 py-2.5 bg-red-600/10 hover:bg-red-600/20 text-red-500 rounded-lg font-medium transition-colors disabled:opacity-50"
-                                            >
-                                                ✗ 拒绝
-                                            </button>
-                                        </>
-                                    )}
-                                    <button
-                                        onClick={() => setDeletingPrompt(prompt)}
-                                        disabled={processingId === prompt.id}
-                                        className="py-2.5 px-4 bg-[var(--bg-tertiary)] hover:bg-red-600/10 text-[var(--text-secondary)] hover:text-red-500 rounded-lg font-medium transition-colors disabled:opacity-50"
-                                    >
-                                        🗑️ 删除
-                                    </button>
-                                </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
-                )}
+                        )}
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="flex justify-center gap-2 mt-8">
-                        <button
-                            onClick={() => setPage(Math.max(1, page - 1))}
-                            disabled={page === 1}
-                            className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-secondary)] disabled:opacity-50"
-                        >
-                            上一页
-                        </button>
-                        <span className="px-4 py-2 text-[var(--text-secondary)]">
-                            {page} / {totalPages}
-                        </span>
-                        <button
-                            onClick={() => setPage(Math.min(totalPages, page + 1))}
-                            disabled={page === totalPages}
-                            className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-secondary)] disabled:opacity-50"
-                        >
-                            下一页
-                        </button>
-                    </div>
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-center gap-2 mt-8">
+                                <button
+                                    onClick={() => setPage(Math.max(1, page - 1))}
+                                    disabled={page === 1}
+                                    className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-secondary)] disabled:opacity-50"
+                                >
+                                    上一页
+                                </button>
+                                <span className="px-4 py-2 text-[var(--text-secondary)]">
+                                    {page} / {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => setPage(Math.min(totalPages, page + 1))}
+                                    disabled={page === totalPages}
+                                    className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-secondary)] disabled:opacity-50"
+                                >
+                                    下一页
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
@@ -462,7 +660,7 @@ export default function AdminReview() {
                 </div>
             )}
 
-            {/* Delete Confirmation Modal */}
+            {/* Delete Prompt Confirmation Modal */}
             {deletingPrompt && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-[var(--bg-secondary)] rounded-2xl shadow-2xl w-full max-w-md border border-[var(--border-primary)]">
@@ -490,6 +688,39 @@ export default function AdminReview() {
                                 className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium disabled:opacity-50"
                             >
                                 {processingId === deletingPrompt.id ? '删除中...' : '确认删除'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Category Confirmation Modal */}
+            {deletingCategory && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-[var(--bg-secondary)] rounded-2xl shadow-2xl w-full max-w-md border border-[var(--border-primary)]">
+                        <div className="p-6 border-b border-[var(--border-primary)]">
+                            <h2 className="text-xl font-bold text-red-500">确认删除分类</h2>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-[var(--text-secondary)]">
+                                确定要删除分类 "<span className="text-[var(--text-primary)] font-medium">{deletingCategory.name}</span>" 吗？
+                            </p>
+                            <p className="text-sm text-[var(--text-muted)] mt-2">
+                                使用该分类的提示词将被自动归类到"其他"。
+                            </p>
+                        </div>
+                        <div className="p-6 border-t border-[var(--border-primary)] flex gap-3">
+                            <button
+                                onClick={() => setDeletingCategory(null)}
+                                className="flex-1 py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-xl font-medium"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={handleDeleteCategory}
+                                className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium"
+                            >
+                                确认删除
                             </button>
                         </div>
                     </div>

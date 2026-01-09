@@ -367,6 +367,34 @@ export const publicPromptApi = {
     delete: async (id: string): Promise<{ message: string; id: string }> => {
         const response = await api.delete<{ message: string; id: string }>(`/public-prompts/admin/${id}`);
         return response.data;
+    },
+
+    // ============ 分类管理 (管理员) ============
+
+    // 获取分类列表详情
+    getAdminCategories: async (): Promise<{ id: string; name: string; sort_order: number; created_at: string }[]> => {
+        const response = await api.get<{ id: string; name: string; sort_order: number; created_at: string }[]>('/public-prompts/admin/categories');
+        return response.data;
+    },
+
+    // 创建分类
+    createCategory: async (name: string): Promise<{ message: string; id: string; name: string }> => {
+        const response = await api.post<{ message: string; id: string; name: string }>('/public-prompts/admin/categories', null, {
+            params: { name }
+        });
+        return response.data;
+    },
+
+    // 删除分类
+    deleteCategory: async (id: string): Promise<{ message: string; id: string; name: string }> => {
+        const response = await api.delete<{ message: string; id: string; name: string }>(`/public-prompts/admin/categories/${id}`);
+        return response.data;
+    },
+
+    // 重新排序分类
+    reorderCategories: async (categoryIds: string[]): Promise<{ message: string }> => {
+        const response = await api.put<{ message: string }>('/public-prompts/admin/categories/reorder', categoryIds);
+        return response.data;
     }
 };
 

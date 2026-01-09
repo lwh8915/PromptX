@@ -18,8 +18,36 @@ router = APIRouter()
 # 每日上传限制
 DAILY_UPLOAD_LIMIT = 3
 
-# 预定义分类
-PUBLIC_CATEGORIES = ["写作", "编程", "营销", "翻译", "学习", "效率", "其他"]
+# 默认分类（用于初始化）
+DEFAULT_CATEGORIES = ["写作", "编程", "营销", "翻译", "学习", "效率", "其他"]
+
+
+async def ensure_default_categories():
+    """确保默认分类存在（首次运行时初始化）"""
+    collection = get_collection("public_categories")
+    count = await collection.count_documents({})
+    if count == 0:
+        # 初始化默认分类
+        now = datetime.utcnow()
+        for i, name in enumerate(DEFAULT_CATEGORIES):
+            await collection.insert_one({
+                "name": name,
+                "sort_order": i,
+                "created_at": now
+            })
+
+
+async def get_all_categories() -> List[str]:
+    """获取所有分类名称列表"""
+    collection = get_collection("public_categories")
+    # 确保有默认分类
+    await ensure_default_categories()
+    
+    cursor = collection.find({}).sort("sort_order", 1)
+    categories = []
+    async for cat in cursor:
+        categories.append(cat["name"])
+    return categories
 
 
 def serialize_public_prompt(prompt: dict, current_user_id: str = None) -> dict:
@@ -66,7 +94,7 @@ async def get_today_upload_count(user_id: str) -> int:
 @router.get("/categories", response_model=List[str])
 async def get_categories(current_user: dict = Depends(get_current_user)):
     """获取公共提示词分类列表"""
-    return PUBLIC_CATEGORIES
+    return await get_all_categories()
 
 
 @router.get("/my-upload-status", response_model=dict)
@@ -207,18 +235,25 @@ async def create_public_prompt(
         status = "approved" if today_count < DAILY_UPLOAD_LIMIT else "pending"
     
     now = datetime.utcnow()
+    
+    # 验证分类是否有效
+    all_categories = await get_all_categories()
+    valid_category = prompt_data.category if prompt_data.category in all_categories else "其他"
+    
     new_prompt = {
         "title": prompt_data.title,
         "content": prompt_data.content,
         "description": prompt_data.description,
         "tags": prompt_data.tags,
-        "category": prompt_data.category if prompt_data.category in PUBLIC_CATEGORIES else "其他",
+        "category": valid_category,
         "author_id": ObjectId(current_user["id"]),
         "author_name": author_name,
         "source_prompt_id": None,
         "status": status,
         "review_note": None,
         "download_count": 0,
+        "like_count": 0,
+        "liked_by": [],
         "created_at": now,
         "updated_at": now
     }
@@ -276,8 +311,9 @@ async def upload_to_public(
     # 自动从标签中检测分类
     source_tags = source_prompt.get("tags", [])
     detected_category = "其他"
+    all_categories = await get_all_categories()
     for tag in source_tags:
-        if tag in PUBLIC_CATEGORIES:
+        if tag in all_categories:
             detected_category = tag
             break
     
@@ -639,3 +675,114 @@ async def delete_public_prompt(
     
     return {"message": "删除成功", "id": prompt_id}
 
+
+# ============ 分类管理 API (管理员) ============
+
+@router.get("/admin/categories", response_model=List[dict])
+async def get_admin_categories(current_user: dict = Depends(get_current_user)):
+    """获取分类列表详情 (管理员)"""
+    await check_admin(current_user)
+    
+    collection = get_collection("public_categories")
+    await ensure_default_categories()
+    
+    cursor = collection.find({}).sort("sort_order", 1)
+    categories = []
+    async for cat in cursor:
+        categories.append({
+            "id": str(cat["_id"]),
+            "name": cat["name"],
+            "sort_order": cat.get("sort_order", 0),
+            "created_at": cat.get("created_at")
+        })
+    return categories
+
+
+@router.post("/admin/categories", response_model=dict)
+async def create_category(
+    name: str = Query(..., min_length=1, max_length=20, description="分类名称"),
+    current_user: dict = Depends(get_current_user)
+):
+    """创建新分类 (管理员)"""
+    await check_admin(current_user)
+    
+    collection = get_collection("public_categories")
+    
+    # 检查是否已存在
+    existing = await collection.find_one({"name": name})
+    if existing:
+        raise HTTPException(status_code=400, detail="该分类已存在")
+    
+    # 获取最大排序号
+    last_cat = await collection.find_one({}, sort=[("sort_order", -1)])
+    max_order = last_cat.get("sort_order", 0) if last_cat else 0
+    
+    now = datetime.utcnow()
+    result = await collection.insert_one({
+        "name": name,
+        "sort_order": max_order + 1,
+        "created_at": now
+    })
+    
+    return {
+        "message": "创建成功",
+        "id": str(result.inserted_id),
+        "name": name
+    }
+
+
+@router.delete("/admin/categories/{category_id}", response_model=dict)
+async def delete_category(
+    category_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """删除分类 (管理员)"""
+    await check_admin(current_user)
+    
+    collection = get_collection("public_categories")
+    
+    try:
+        category = await collection.find_one({"_id": ObjectId(category_id)})
+    except:
+        raise HTTPException(status_code=400, detail="无效的分类 ID")
+    
+    if not category:
+        raise HTTPException(status_code=404, detail="分类不存在")
+    
+    # 不允许删除"其他"分类
+    if category["name"] == "其他":
+        raise HTTPException(status_code=400, detail="无法删除默认分类")
+    
+    # 将使用该分类的提示词改为"其他"
+    prompts_collection = get_collection("public_prompts")
+    await prompts_collection.update_many(
+        {"category": category["name"]},
+        {"$set": {"category": "其他"}}
+    )
+    
+    await collection.delete_one({"_id": ObjectId(category_id)})
+    
+    return {"message": "删除成功", "id": category_id, "name": category["name"]}
+
+
+@router.put("/admin/categories/reorder", response_model=dict)
+async def reorder_categories(
+    category_ids: List[str],
+    current_user: dict = Depends(get_current_user)
+):
+    """重新排序分类 (管理员)"""
+    await check_admin(current_user)
+    
+    collection = get_collection("public_categories")
+    
+    # 更新每个分类的排序号
+    for i, cat_id in enumerate(category_ids):
+        try:
+            await collection.update_one(
+                {"_id": ObjectId(cat_id)},
+                {"$set": {"sort_order": i}}
+            )
+        except:
+            pass  # 忽略无效的ID
+    
+    return {"message": "排序更新成功"}

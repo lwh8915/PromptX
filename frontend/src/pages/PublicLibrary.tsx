@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { publicPromptApi, type PublicPrompt } from '../api/client';
+import { publicPromptApi, type PublicPrompt, type PublicPromptCreate } from '../api/client';
 import Toast from '../components/ui/Toast';
 
 type SortBy = 'latest' | 'likes' | 'downloads';
@@ -9,10 +9,11 @@ type SortBy = 'latest' | 'likes' | 'downloads';
 /**
  * PublicLibrary - 公共提示词库页面
  * 展示所有已审核通过的公共提示词，支持搜索、分类筛选、排序、点赞、下载
+ * 管理员可直接新建公共提示词
  */
 export default function PublicLibrary() {
     const navigate = useNavigate();
-    const { isAuthenticated, checkAuth } = useAuthStore();
+    const { isAuthenticated, checkAuth, user } = useAuthStore();
 
     // 数据状态
     const [prompts, setPrompts] = useState<PublicPrompt[]>([]);
@@ -33,6 +34,20 @@ export default function PublicLibrary() {
     const [viewingPrompt, setViewingPrompt] = useState<PublicPrompt | null>(null);
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
     const [likingId, setLikingId] = useState<string | null>(null);
+
+    // 管理员创建弹窗状态
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [createForm, setCreateForm] = useState<PublicPromptCreate>({
+        title: '',
+        content: '',
+        description: '',
+        tags: [],
+        category: '其他'
+    });
+    const [tagInput, setTagInput] = useState('');
+    const [isCreating, setIsCreating] = useState(false);
+
+    const isAdmin = user?.is_admin || false;
 
     // 检查认证
     useEffect(() => {
@@ -149,6 +164,43 @@ export default function PublicLibrary() {
         }
     };
 
+    // 管理员创建提示词
+    const handleCreate = async () => {
+        if (!createForm.title.trim() || !createForm.content.trim()) {
+            setToast({ message: '标题和内容不能为空', type: 'error' });
+            return;
+        }
+
+        setIsCreating(true);
+        try {
+            await publicPromptApi.create(createForm);
+            setToast({ message: '创建成功', type: 'success' });
+            setShowCreateModal(false);
+            setCreateForm({ title: '', content: '', description: '', tags: [], category: '其他' });
+            setTagInput('');
+            fetchPrompts();
+        } catch (error: any) {
+            const message = error.response?.data?.detail || '创建失败';
+            setToast({ message, type: 'error' });
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    // 添加标签
+    const handleAddTag = () => {
+        const tag = tagInput.trim();
+        if (tag && !createForm.tags.includes(tag)) {
+            setCreateForm(prev => ({ ...prev, tags: [...prev.tags, tag] }));
+            setTagInput('');
+        }
+    };
+
+    // 移除标签
+    const handleRemoveTag = (tag: string) => {
+        setCreateForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }));
+    };
+
     const totalPages = Math.ceil(total / pageSize);
 
     const sortOptions: { value: SortBy; label: string }[] = [
@@ -176,18 +228,33 @@ export default function PublicLibrary() {
 
                         <h1 className="text-xl font-bold text-[var(--text-primary)]">公共提示词库</h1>
 
-                        {/* 搜索框 */}
-                        <div className="relative w-64">
-                            <input
-                                type="text"
-                                placeholder="搜索..."
-                                value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                                className="w-full px-4 py-2 pl-10 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-500)] focus:border-transparent transition-all"
-                            />
-                            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
+                        {/* 右侧按钮区域 */}
+                        <div className="flex items-center gap-3">
+                            {/* 管理员新建按钮 */}
+                            {isAdmin && (
+                                <button
+                                    onClick={() => setShowCreateModal(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[var(--primary-500)] to-[var(--primary-600)] text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    新建提示词
+                                </button>
+                            )}
+                            {/* 搜索框 */}
+                            <div className="relative w-64">
+                                <input
+                                    type="text"
+                                    placeholder="搜索..."
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                    className="w-full px-4 py-2 pl-10 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-500)] focus:border-transparent transition-all"
+                                />
+                                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -449,6 +516,142 @@ export default function PublicLibrary() {
                                 className="flex-1 py-3 bg-gradient-to-r from-[var(--primary-500)] to-[var(--primary-600)] text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
                             >
                                 添加到我的库
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Admin Create Modal */}
+            {showCreateModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-[var(--bg-secondary)] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-[var(--border-primary)]">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-6 border-b border-[var(--border-primary)]">
+                            <h2 className="text-xl font-bold text-[var(--text-primary)]">新建公共提示词</h2>
+                            <button
+                                onClick={() => setShowCreateModal(false)}
+                                className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
+                            >
+                                <svg className="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 overflow-y-auto max-h-[60vh] space-y-4">
+                            {/* Title */}
+                            <div>
+                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">标题 *</label>
+                                <input
+                                    type="text"
+                                    value={createForm.title}
+                                    onChange={(e) => setCreateForm(prev => ({ ...prev, title: e.target.value }))}
+                                    placeholder="输入提示词标题"
+                                    className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-500)]"
+                                />
+                            </div>
+
+                            {/* Content */}
+                            <div>
+                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">内容 *</label>
+                                <textarea
+                                    value={createForm.content}
+                                    onChange={(e) => setCreateForm(prev => ({ ...prev, content: e.target.value }))}
+                                    placeholder="输入提示词内容"
+                                    rows={6}
+                                    className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-500)] resize-none font-mono text-sm"
+                                />
+                            </div>
+
+                            {/* Description */}
+                            <div>
+                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">描述</label>
+                                <input
+                                    type="text"
+                                    value={createForm.description || ''}
+                                    onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
+                                    placeholder="简短描述这个提示词的用途"
+                                    className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-500)]"
+                                />
+                            </div>
+
+                            {/* Category */}
+                            <div>
+                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">分类</label>
+                                <select
+                                    value={createForm.category}
+                                    onChange={(e) => setCreateForm(prev => ({ ...prev, category: e.target.value }))}
+                                    className="w-full px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-xl text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-500)]"
+                                >
+                                    {categories.map(cat => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Tags */}
+                            <div>
+                                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">标签</label>
+                                <div className="flex gap-2 mb-2">
+                                    <input
+                                        type="text"
+                                        value={tagInput}
+                                        onChange={(e) => setTagInput(e.target.value)}
+                                        placeholder="输入标签后按回车添加"
+                                        className="flex-1 px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-500)]"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleAddTag();
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        onClick={handleAddTag}
+                                        className="px-4 py-2.5 bg-[var(--primary-500)] text-white rounded-xl font-medium hover:opacity-90"
+                                    >
+                                        添加
+                                    </button>
+                                </div>
+                                {createForm.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {createForm.tags.map(tag => (
+                                            <span
+                                                key={tag}
+                                                className="flex items-center gap-1 px-3 py-1 bg-[var(--primary-500)]/10 text-[var(--primary-400)] rounded-full text-sm"
+                                            >
+                                                {tag}
+                                                <button
+                                                    onClick={() => handleRemoveTag(tag)}
+                                                    className="hover:text-red-500"
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-6 border-t border-[var(--border-primary)] flex gap-3">
+                            <button
+                                onClick={() => setShowCreateModal(false)}
+                                className="flex-1 py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-xl font-medium hover:bg-[var(--bg-tertiary)]/80 transition-colors"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={handleCreate}
+                                disabled={isCreating || !createForm.title.trim() || !createForm.content.trim()}
+                                className="flex-1 py-3 bg-gradient-to-r from-[var(--primary-500)] to-[var(--primary-600)] text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+                            >
+                                {isCreating ? '创建中...' : '创建'}
                             </button>
                         </div>
                     </div>
