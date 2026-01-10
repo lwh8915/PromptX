@@ -302,6 +302,97 @@ python delete_test_data.py
 
 ---
 
+### 🌐 公共模板库
+
+<div align="center">
+  <img src="promptx_imgs/gongongmubanku.png" alt="公共模板库主界面" width="800"/>
+  <p><em>公共模板库主界面 - 浏览社区分享的优质提示词</em></p>
+</div>
+
+**公共模板库** 是 PromptX 的核心亮点功能之一，打造了一个 **提示词分享社区**。用户可以浏览、搜索、下载他人分享的优质提示词，也可以将自己精心打磨的提示词分享给社区。
+
+**📤 一键分享提示词**
+
+<div align="center">
+  <img src="promptx_imgs/mubankurukou.png" alt="模板库分享入口" width="800"/>
+  <p><em>从个人库一键分享到公共库</em></p>
+</div>
+
+在个人提示词列表中，点击"分享到公共库"即可将提示词上传。每人每天有 **3 次免审核额度**，超过后自动进入审核队列，有效防止低质量内容泛滥。
+
+**🔍 强大的搜索和排序**
+
+<div align="center">
+  <img src="promptx_imgs/tishicisousuo.png" alt="公共库搜索" width="800"/>
+  <p><em>支持任意关键词搜索</em></p>
+</div>
+
+<div align="center">
+  <img src="promptx_imgs/fenleipaixu.png" alt="分类和排序" width="800"/>
+  <p><em>支持按分类筛选、点赞数排序、下载量排序</em></p>
+</div>
+
+公共库支持 **任意关键词搜索**，并提供多种排序方式：
+- 📅 最新上传
+- ❤️ 点赞最多
+- 📥 下载最多
+
+**📖 详情页深度查看**
+
+<div align="center">
+  <img src="promptx_imgs/mubankuchakan.png" alt="模板详情页" width="800"/>
+  <p><em>查看提示词完整内容和元信息</em></p>
+</div>
+
+点击任意提示词卡片进入详情页，可以查看完整内容、作者信息、点赞数、下载量，并一键下载到个人库。
+
+**💬 评分与评论系统**
+
+<div align="center">
+  <img src="promptx_imgs/mubankupinglun.png" alt="评论和评分" width="800"/>
+  <p><em>用户可以打分、评论，作者可以回复</em></p>
+</div>
+
+每个公共提示词都支持：
+- ⭐ **5 星评分系统** - 为优质内容打分
+- 💬 **评论互动** - 用户提问，作者回复
+- 📊 **排序选项** - 按最新、最热评论排序
+
+真实的社区反馈，帮助你找到最优质的提示词，避免踩坑。
+
+---
+
+### 🛡️ 管理员功能
+
+**审核中心**
+
+<div align="center">
+  <img src="promptx_imgs/shenhezhongxin.png" alt="审核中心" width="800"/>
+  <p><em>管理员审核待发布的提示词</em></p>
+</div>
+
+管理员拥有专属的 **审核中心**，可以：
+- 查看所有待审核的提示词
+- 通过或拒绝用户提交
+- 按状态筛选（待审核/已通过/已拒绝）
+- 快速搜索和批量管理
+
+**分类管理**
+
+<div align="center">
+  <img src="promptx_imgs/xinjianfenleipaixu.png" alt="新增分类" width="800"/>
+  <p><em>管理员新增自定义分类</em></p>
+</div>
+
+管理员可以为公共库创建和管理分类，支持：
+- ➕ 新增自定义分类
+- 🔄 拖拽调整分类顺序
+- 🗑️ 删除不需要的分类
+
+让公共库的内容组织更加合理和易于查找。
+
+---
+
 ### 🔄 热更新机制
 
 <div align="center">
