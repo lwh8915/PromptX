@@ -256,6 +256,8 @@ async def create_public_prompt(
         "download_count": 0,
         "like_count": 0,
         "liked_by": [],
+        "avg_rating": 0,
+        "review_count": 0,
         "created_at": now,
         "updated_at": now
     }
@@ -331,6 +333,10 @@ async def upload_to_public(
         "status": status,
         "review_note": None,
         "download_count": 0,
+        "like_count": 0,
+        "liked_by": [],
+        "avg_rating": 0,
+        "review_count": 0,
         "created_at": now,
         "updated_at": now
     }
@@ -959,6 +965,26 @@ async def create_review(
             {"prompt_id": ObjectId(prompt_id), "user_id": user_id},
             {"$set": {"has_reviewed": True}}
         )
+        
+        # 通知提示词作者有新评论
+        prompt_author_id = prompt.get("author_id")
+        author_id_str = str(prompt_author_id) if prompt_author_id else None
+        print(f"[DEBUG] Creating notification for author: {author_id_str}, prompt_author_id type: {type(prompt_author_id)}")
+        
+        if author_id_str and author_id_str != str(user_id):
+            try:
+                from .notifications import create_notification
+                await create_notification(
+                    user_id=author_id_str,
+                    notification_type="review_reply",
+                    title="您的提示词收到了新评价",
+                    content=f"{user_name} 对《{prompt.get('title', '提示词')}》评价了 {rating} 星：{filtered_content[:80]}{'...' if len(filtered_content) > 80 else ''}",
+                    related_id=prompt_id,
+                    actor_name=user_name
+                )
+                print(f"[DEBUG] Notification created successfully for {author_id_str}")
+            except Exception as e:
+                print(f"[DEBUG] Failed to create notification: {e}")
     
     return {
         "message": "评价成功",
@@ -1147,7 +1173,26 @@ async def reply_to_review(
         }}
     )
     
-    # TODO: 发送通知给评论用户
+    # 发送通知给评论用户
+    review_user_id = str(review.get("user_id"))
+    print(f"[DEBUG] Reply notification - review_user_id: {review_user_id}, current_user_id: {current_user['id']}")
+    
+    if review_user_id != current_user["id"]:  # Don't notify if replying to own review
+        try:
+            from .notifications import create_notification
+            await create_notification(
+                user_id=review_user_id,
+                notification_type="review_reply",
+                title="您的评论收到了作者回复",
+                content=f"{current_user.get('username', '作者')} 回复了您的评论：{filtered_reply[:100]}{'...' if len(filtered_reply) > 100 else ''}",
+                related_id=str(prompt.get("_id")),
+                actor_name=current_user.get("username")
+            )
+            print(f"[DEBUG] Reply notification created for {review_user_id}")
+        except Exception as e:
+            print(f"[DEBUG] Failed to create reply notification: {e}")
+    else:
+        print(f"[DEBUG] Skipping notification - replying to own review")
     
     return {"message": "回复成功"}
 

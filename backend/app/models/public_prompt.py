@@ -33,6 +33,8 @@ class PublicPromptResponse(PublicPromptBase):
     download_count: int = 0
     like_count: int = 0
     is_liked: bool = False
+    avg_rating: float = 0
+    review_count: int = 0
     created_at: datetime
     updated_at: datetime
 

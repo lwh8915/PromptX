@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { usePromptStore } from '../stores/promptStore';
+import { useNotificationStore } from '../stores/notificationStore';
 import Sidebar from '../components/layout/Sidebar';
 import PromptCard from '../components/shared/PromptCard';
 import PromptModal from '../components/shared/PromptModal';
@@ -43,6 +44,18 @@ export default function Dashboard() {
     } = usePromptStore();
 
     const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+    const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
+
+    // 通知系统
+    const {
+        notifications,
+        unreadCount,
+        fetchNotifications,
+        markAsRead,
+        markAllAsRead,
+        connectWebSocket,
+        disconnectWebSocket
+    } = useNotificationStore();
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -84,8 +97,17 @@ export default function Dashboard() {
             fetchCategories();
             fetchPrompts();
             fetchTags(); // 加载可用标签
+            fetchNotifications(); // 加载通知
         }
-    }, [isAuthenticated, fetchCategories, fetchPrompts, fetchTags]);
+    }, [isAuthenticated, fetchCategories, fetchPrompts, fetchTags, fetchNotifications]);
+
+    // WebSocket 连接
+    useEffect(() => {
+        if (isAuthenticated && user?.id) {
+            connectWebSocket(user.id);
+            return () => disconnectWebSocket();
+        }
+    }, [isAuthenticated, user?.id, connectWebSocket, disconnectWebSocket]);
 
     // 搜索防抖
     useEffect(() => {
@@ -295,6 +317,74 @@ export default function Dashboard() {
                         </div>
 
                         <div className="flex items-center gap-3">
+                            {/* 通知铃铛 */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
+                                    className="btn btn-ghost p-2 relative"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                    </svg>
+                                    {unreadCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                            {unreadCount > 9 ? '9+' : unreadCount}
+                                        </span>
+                                    )}
+                                </button>
+
+                                {/* 通知下拉菜单 */}
+                                {isNotificationDropdownOpen && (
+                                    <div className="absolute top-full right-0 mt-2 w-80 max-h-96 overflow-y-auto glass-card p-2 z-50 animate-slideDown">
+                                        <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-primary)]">
+                                            <span className="font-semibold text-[var(--text-primary)]">通知</span>
+                                            {unreadCount > 0 && (
+                                                <button
+                                                    onClick={() => markAllAsRead()}
+                                                    className="text-xs text-[var(--primary-400)] hover:underline"
+                                                >
+                                                    全部已读
+                                                </button>
+                                            )}
+                                        </div>
+                                        {notifications.length === 0 ? (
+                                            <div className="text-sm text-[var(--text-tertiary)] text-center py-8">
+                                                暂无通知
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y divide-[var(--border-secondary)]">
+                                                {notifications.slice(0, 10).map(notification => (
+                                                    <div
+                                                        key={notification.id}
+                                                        className={`px-3 py-2 hover:bg-[var(--bg-glass)] cursor-pointer transition-colors ${!notification.is_read ? 'bg-[var(--primary-500)]/5' : ''}`}
+                                                        onClick={() => {
+                                                            if (!notification.is_read) markAsRead(notification.id);
+                                                            setIsNotificationDropdownOpen(false);
+                                                        }}
+                                                    >
+                                                        <div className="flex items-start gap-2">
+                                                            {!notification.is_read && (
+                                                                <div className="w-2 h-2 rounded-full bg-[var(--primary-500)] mt-2 flex-shrink-0" />
+                                                            )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-sm font-medium text-[var(--text-primary)] truncate">
+                                                                    {notification.title}
+                                                                </div>
+                                                                <div className="text-xs text-[var(--text-secondary)] line-clamp-2">
+                                                                    {notification.content}
+                                                                </div>
+                                                                <div className="text-xs text-[var(--text-tertiary)] mt-1">
+                                                                    {new Date(notification.created_at).toLocaleString()}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                             {/* 视图切换按钮 */}
                             <div className="flex items-center glass-card p-1 gap-1">
                                 <button

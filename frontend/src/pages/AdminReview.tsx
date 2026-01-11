@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { publicPromptApi, type PublicPrompt } from '../api/client';
+import { publicPromptApi, type PublicPrompt, type Review } from '../api/client';
 import Toast from '../components/ui/Toast';
 
-type TabType = 'pending' | 'approved' | 'rejected' | 'all' | 'categories';
+type TabType = 'pending' | 'approved' | 'rejected' | 'all' | 'categories' | 'reviews';
 
 interface Category {
     id: string;
@@ -45,6 +45,14 @@ export default function AdminReview() {
     const [rejectNote, setRejectNote] = useState('');
     const [deletingPrompt, setDeletingPrompt] = useState<PublicPrompt | null>(null);
     const [processingId, setProcessingId] = useState<string | null>(null);
+
+    // 评论管理状态
+    const [reviews, setReviews] = useState<Review[]>([]);
+    const [reviewStats, setReviewStats] = useState({ total_reviews: 0, reported_reviews: 0, pending_reports: 0, overall_avg_rating: 0 });
+    const [reviewFilter, setReviewFilter] = useState<'all' | 'reported'>('all');
+    const [reviewPage, setReviewPage] = useState(1);
+    const [reviewTotal, setReviewTotal] = useState(0);
+    const [deletingReview, setDeletingReview] = useState<Review | null>(null);
 
     // 检查认证和权限
     useEffect(() => {
@@ -112,28 +120,84 @@ export default function AdminReview() {
         }
     };
 
+    // 加载评论列表
+    const loadReviews = async () => {
+        setIsLoading(true);
+        try {
+            const result = await publicPromptApi.getAdminReviews({
+                status: reviewFilter === 'reported' ? 'reported' : undefined,
+                page: reviewPage,
+                page_size: pageSize
+            });
+            setReviews(result.items);
+            setReviewTotal(result.total);
+        } catch (error: any) {
+            setToast({ message: '加载评论失败', type: 'error' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 加载评论统计
+    const loadReviewStats = async () => {
+        try {
+            const data = await publicPromptApi.getReviewStats();
+            setReviewStats(data);
+        } catch (error: any) {
+            console.error('Failed to load review stats:', error);
+        }
+    };
+
+    // 删除评论
+    const handleDeleteReview = async () => {
+        if (!deletingReview) return;
+
+        setProcessingId(deletingReview.id);
+        try {
+            await publicPromptApi.deleteReview(deletingReview.id);
+            setToast({ message: '删除成功', type: 'success' });
+            setDeletingReview(null);
+            loadReviews();
+            loadReviewStats();
+        } catch (error: any) {
+            setToast({ message: error.response?.data?.detail || '删除失败', type: 'error' });
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
     useEffect(() => {
         if (isAuthenticated) {
             loadStats();
+            loadReviewStats();
         }
     }, [isAuthenticated]);
 
     useEffect(() => {
         if (isAuthenticated) {
             setPage(1);
+            setReviewPage(1);
             if (activeTab === 'categories') {
                 loadCategories();
+            } else if (activeTab === 'reviews') {
+                loadReviews();
             } else {
                 loadPrompts();
             }
         }
-    }, [isAuthenticated, activeTab, searchQuery]);
+    }, [isAuthenticated, activeTab, searchQuery, reviewFilter]);
 
     useEffect(() => {
-        if (isAuthenticated && activeTab !== 'categories') {
+        if (isAuthenticated && activeTab !== 'categories' && activeTab !== 'reviews') {
             loadPrompts();
         }
     }, [page]);
+
+    useEffect(() => {
+        if (isAuthenticated && activeTab === 'reviews') {
+            loadReviews();
+        }
+    }, [reviewPage]);
 
     // 审核通过
     const handleApprove = async (prompt: PublicPrompt) => {
@@ -297,7 +361,10 @@ export default function AdminReview() {
         { key: 'rejected', label: '已拒绝', count: stats.rejected },
         { key: 'all', label: '全部', count: stats.total },
         { key: 'categories', label: '📂 分类管理' },
+        { key: 'reviews', label: '💬 评论管理', count: reviewStats.reported_reviews },
     ];
+
+    const reviewTotalPages = Math.ceil(reviewTotal / pageSize);
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)]">
@@ -389,10 +456,10 @@ export default function AdminReview() {
                                         onDrop={(e) => handleDrop(e, cat)}
                                         onDragEnd={handleDragEnd}
                                         className={`flex items-center justify-between p-4 cursor-grab active:cursor-grabbing transition-colors ${draggedCategory?.id === cat.id
-                                                ? 'opacity-50 bg-[var(--primary-500)]/10'
-                                                : dragOverId === cat.id
-                                                    ? 'bg-[var(--primary-500)]/20 border-l-4 border-[var(--primary-500)]'
-                                                    : 'hover:bg-[var(--bg-tertiary)]/50'
+                                            ? 'opacity-50 bg-[var(--primary-500)]/10'
+                                            : dragOverId === cat.id
+                                                ? 'bg-[var(--primary-500)]/20 border-l-4 border-[var(--primary-500)]'
+                                                : 'hover:bg-[var(--bg-tertiary)]/50'
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">
@@ -420,6 +487,133 @@ export default function AdminReview() {
                                 ))}
                             </div>
                         </div>
+                    </div>
+                ) : activeTab === 'reviews' ? (
+                    <div className="space-y-6">
+                        {/* Review Stats */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 text-center">
+                                <div className="text-2xl font-bold text-[var(--text-primary)]">{reviewStats.total_reviews}</div>
+                                <div className="text-xs text-[var(--text-muted)]">总评论数</div>
+                            </div>
+                            <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 text-center">
+                                <div className="text-2xl font-bold text-yellow-500">{reviewStats.overall_avg_rating.toFixed(1)}</div>
+                                <div className="text-xs text-[var(--text-muted)]">平均评分</div>
+                            </div>
+                            <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 text-center">
+                                <div className="text-2xl font-bold text-red-500">{reviewStats.reported_reviews}</div>
+                                <div className="text-xs text-[var(--text-muted)]">被举报评论</div>
+                            </div>
+                            <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-4 text-center">
+                                <div className="text-2xl font-bold text-orange-500">{reviewStats.pending_reports}</div>
+                                <div className="text-xs text-[var(--text-muted)]">待处理举报</div>
+                            </div>
+                        </div>
+
+                        {/* Filter Buttons */}
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setReviewFilter('all')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${reviewFilter === 'all'
+                                    ? 'bg-[var(--primary-500)] text-white'
+                                    : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                    }`}
+                            >
+                                全部评论
+                            </button>
+                            <button
+                                onClick={() => setReviewFilter('reported')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${reviewFilter === 'reported'
+                                    ? 'bg-red-600 text-white'
+                                    : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-red-500'
+                                    }`}
+                            >
+                                被举报 ({reviewStats.reported_reviews})
+                            </button>
+                        </div>
+
+                        {/* Reviews List */}
+                        {isLoading ? (
+                            <div className="flex items-center justify-center py-20">
+                                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--primary-500)] border-t-transparent"></div>
+                            </div>
+                        ) : reviews.length === 0 ? (
+                            <div className="text-center py-20">
+                                <p className="text-[var(--text-muted)]">暂无评论</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {reviews.map(review => (
+                                    <div
+                                        key={review.id}
+                                        className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-5"
+                                    >
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-semibold text-[var(--text-primary)]">{review.user_name}</span>
+                                                    <div className="flex items-center gap-1 text-yellow-500">
+                                                        {[1, 2, 3, 4, 5].map(star => (
+                                                            <svg key={star} className="w-3.5 h-3.5" fill={star <= review.rating ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                                            </svg>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div className="text-xs text-[var(--text-muted)]">
+                                                    {new Date(review.created_at).toLocaleString()}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {review.status === 'reported' && (
+                                                    <span className="px-2 py-1 text-xs bg-red-500/10 text-red-500 rounded-full">已举报</span>
+                                                )}
+                                                <span className="text-xs text-[var(--text-muted)]">👍 {review.like_count}</span>
+                                            </div>
+                                        </div>
+
+                                        <p className="text-sm text-[var(--text-secondary)] mb-3">{review.content}</p>
+
+                                        {review.author_reply && (
+                                            <div className="bg-[var(--bg-tertiary)] rounded-lg p-3 mb-3 ml-4 border-l-2 border-[var(--primary-500)]">
+                                                <div className="text-xs text-[var(--text-muted)] mb-1">作者回复</div>
+                                                <p className="text-sm text-[var(--text-secondary)]">{review.author_reply}</p>
+                                            </div>
+                                        )}
+
+                                        <button
+                                            onClick={() => setDeletingReview(review)}
+                                            className="px-3 py-1.5 text-sm text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                        >
+                                            删除评论
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Pagination */}
+                        {reviewTotalPages > 1 && (
+                            <div className="flex justify-center gap-2 mt-8">
+                                <button
+                                    onClick={() => setReviewPage(Math.max(1, reviewPage - 1))}
+                                    disabled={reviewPage === 1}
+                                    className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-secondary)] disabled:opacity-50"
+                                >
+                                    上一页
+                                </button>
+                                <span className="px-4 py-2 text-[var(--text-secondary)]">
+                                    {reviewPage} / {reviewTotalPages}
+                                </span>
+                                <button
+                                    onClick={() => setReviewPage(Math.min(reviewTotalPages, reviewPage + 1))}
+                                    disabled={reviewPage === reviewTotalPages}
+                                    className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-secondary)] disabled:opacity-50"
+                                >
+                                    下一页
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <>
@@ -721,6 +915,43 @@ export default function AdminReview() {
                                 className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium"
                             >
                                 确认删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Review Confirmation Modal */}
+            {deletingReview && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-[var(--bg-secondary)] rounded-2xl shadow-2xl w-full max-w-md border border-[var(--border-primary)]">
+                        <div className="p-6 border-b border-[var(--border-primary)]">
+                            <h2 className="text-xl font-bold text-red-500">确认删除评论</h2>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-[var(--text-secondary)]">
+                                确定要删除 <span className="text-[var(--text-primary)] font-medium">{deletingReview.user_name}</span> 的评论吗？
+                            </p>
+                            <div className="mt-3 bg-[var(--bg-tertiary)] rounded-lg p-3 text-sm text-[var(--text-muted)]">
+                                "{deletingReview.content.slice(0, 100)}{deletingReview.content.length > 100 ? '...' : ''}"
+                            </div>
+                            <p className="text-sm text-[var(--text-muted)] mt-2">
+                                此操作不可撤销。
+                            </p>
+                        </div>
+                        <div className="p-6 border-t border-[var(--border-primary)] flex gap-3">
+                            <button
+                                onClick={() => setDeletingReview(null)}
+                                className="flex-1 py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-xl font-medium"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={handleDeleteReview}
+                                disabled={processingId === deletingReview.id}
+                                className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium disabled:opacity-50"
+                            >
+                                {processingId === deletingReview.id ? '删除中...' : '确认删除'}
                             </button>
                         </div>
                     </div>

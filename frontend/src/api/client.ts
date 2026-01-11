@@ -502,3 +502,54 @@ export const deployApi = {
         return response.data;
     }
 };
+
+// ============ 通知系统 API ============
+export interface Notification {
+    id: string;
+    user_id: string;
+    type: 'review_reply' | 'review_like' | 'prompt_approved' | 'prompt_rejected';
+    title: string;
+    content: string;
+    related_id?: string;
+    actor_name?: string;
+    is_read: boolean;
+    created_at: string;
+}
+
+export interface NotificationListResponse {
+    items: Notification[];
+    total: number;
+    unread_count: number;
+}
+
+export const notificationApi = {
+    // 获取通知列表
+    getAll: async (params?: { page?: number; page_size?: number; unread_only?: boolean }): Promise<NotificationListResponse> => {
+        const response = await api.get<NotificationListResponse>('/notifications', { params });
+        return response.data;
+    },
+
+    // 获取未读数量
+    getUnreadCount: async (): Promise<{ unread_count: number }> => {
+        const response = await api.get<{ unread_count: number }>('/notifications/unread-count');
+        return response.data;
+    },
+
+    // 标记已读
+    markAsRead: async (notificationId: string): Promise<{ message: string; id: string }> => {
+        const response = await api.post<{ message: string; id: string }>(`/notifications/${notificationId}/read`);
+        return response.data;
+    },
+
+    // 全部已读
+    markAllAsRead: async (): Promise<{ message: string; updated_count: number }> => {
+        const response = await api.post<{ message: string; updated_count: number }>('/notifications/read-all');
+        return response.data;
+    },
+
+    // 删除通知
+    delete: async (notificationId: string): Promise<{ message: string; id: string }> => {
+        const response = await api.delete<{ message: string; id: string }>(`/notifications/${notificationId}`);
+        return response.data;
+    }
+};
