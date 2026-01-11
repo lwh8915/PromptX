@@ -325,11 +325,11 @@ python delete_test_data.py
 ### 🌐 公共模板库
 
 <div align="center">
-  <img src="promptx_imgs/gongongmubanku.png" alt="公共模板库主界面" width="800"/>
+  <img src="promptx_imgs/pingfenpinglunshuliang.png" alt="公共模板库主界面" width="800"/>
   <p><em>公共模板库主界面 - 浏览社区分享的优质提示词</em></p>
 </div>
 
-**公共模板库** 是 PromptX 的核心亮点功能之一，打造了一个 **提示词分享社区**。用户可以浏览、搜索、下载他人分享的优质提示词，也可以将自己精心打磨的提示词分享给社区。
+**公共模板库** 是 PromptX 的核心亮点功能之一，打造了一个 **提示词分享社区**。用户可以浏览、搜索、下载，评论他人分享的优质提示词，也可以将自己精心打磨的提示词分享给社区。
 
 **📤 一键分享提示词**
 
@@ -375,10 +375,15 @@ python delete_test_data.py
 
 每个公共提示词都支持：
 - ⭐ **5 星评分系统** - 为优质内容打分
-- 💬 **评论互动** - 用户提问，作者回复
+- 💬 **评论互动，实时双向通知** - 用户提问，作者回复
 - 📊 **排序选项** - 按最新、最热评论排序
 
 真实的社区反馈，帮助你找到最优质的提示词，避免踩坑。
+
+<div align="center">
+  <img src="promptx_imgs/tongzhixianshi.png" alt="实时消息通知系统" width="800"/>
+  <p><em>评论和回复的通知</em></p>
+</div>
 
 ---
 
