@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import ShowcaseCarousel from '../components/landing/ShowcaseCarousel';
 
 /**
  * Landing Page - 产品展示页
@@ -88,18 +89,21 @@ export default function Landing() {
                     </div>
                 </div>
 
+                {/* 轮播图展示 */}
+                <ShowcaseCarousel />
+
                 {/* 功能展示卡片 */}
-                <div id="features" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-32">
+                <div id="features" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {[
                         {
-                            icon: '🏷️',
-                            title: '高级标签筛选',
-                            description: '采用多维标签智能聚合逻辑，支持精准过滤与组合筛选，轻松定位你的灵感片段。',
+                            icon: '🌐',
+                            title: '公共模板库',
+                            description: '海量优质提示词模板，一键复制使用，激发无限灵感。',
                         },
                         {
-                            icon: '📁',
-                            title: '智能分类',
-                            description: '支持多级嵌套分类和标签系统，让你的提示词井井有条。',
+                            icon: '💬',
+                            title: '真实社区互动',
+                            description: '基于真实用户的评价与反馈，支持点赞、评论及作者回复，发现真正优质的提示词。',
                         },
                         {
                             icon: '🔍',
@@ -107,9 +111,9 @@ export default function Landing() {
                             description: '快速搜索标题、内容、描述，瞬间找到你需要的提示词。',
                         },
                         {
-                            icon: '🔐',
-                            title: '安全登录',
-                            description: '支持用户名或邮箱登录，安全问题验证找回密码。',
+                            icon: '✨',
+                            title: 'AI 一键优化',
+                            description: '智能分析优化提示词结构，提升 AI 生成质量 50%。',
                         },
                         {
                             icon: '⏱️',
@@ -143,12 +147,12 @@ export default function Landing() {
                 {/* 更多功能 */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16">
                     {[
-                        { icon: '🔒', label: '安全加密' },
+                        { icon: '🚀', label: 'AI 智能优化' },
                         { icon: '🌙', label: '深色模式' },
                         { icon: '⚡', label: '极速响应' },
                         { icon: '🎨', label: '精美界面' },
                         { icon: '⭐', label: '收藏功能' },
-                        { icon: '🏷️', label: '标签系统' },
+                        { icon: '📚', label: '公共题库' },
                         { icon: '📊', label: '卡片/列表视图' },
                         { icon: '👁️', label: '提示词预览' },
                     ].map((item, index) => (
