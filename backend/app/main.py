@@ -49,6 +49,10 @@ app.include_router(public_prompts.router, prefix="/api/public-prompts", tags=["�
 from .routers import notifications
 app.include_router(notifications.router, prefix="/api", tags=["通知"])
 
+# 团队管理
+from .routers import teams
+app.include_router(teams.router, prefix="/api/teams", tags=["团队"])
+
 # 自动注册 deploy（注意: deploy需要在 docker 环境且安装了docker库才生效，建议加 try-except）
 try:
     from .routers import deploy

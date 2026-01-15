@@ -7,6 +7,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import PublicLibrary from './pages/PublicLibrary';
 import AdminReview from './pages/AdminReview';
+import TeamManagement from './pages/TeamManagement';
 
 // 受保护路由组件
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -77,6 +78,14 @@ function App() {
           element={
             <ProtectedRoute>
               <PublicLibrary />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teams"
+          element={
+            <ProtectedRoute>
+              <TeamManagement />
             </ProtectedRoute>
           }
         />

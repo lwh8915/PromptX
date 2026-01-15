@@ -553,3 +553,220 @@ export const notificationApi = {
         return response.data;
     }
 };
+
+
+// ============ 团队 API ============
+
+export interface Team {
+    id: string;
+    name: string;
+    description: string | null;
+    owner_id: string;
+    owner_name: string;
+    invite_code: string;
+    member_count: number;
+    my_role: 'owner' | 'admin' | 'member' | null;
+    created_at: string;
+}
+
+export interface TeamMember {
+    user_id: string;
+    username: string;
+    role: 'owner' | 'admin' | 'member';
+    joined_at: string;
+}
+
+export interface TeamPrompt {
+    id: string;
+    prompt_id: string;
+    title: string;
+    content: string;
+    description: string | null;
+    tags: string[];
+    category: string;
+    shared_by: string;
+    shared_by_name: string;
+    shared_at: string;
+    version_count: number;
+    copy_count: number;
+    team_category_id: string | null;
+}
+
+export interface TeamCategory {
+    id: string;
+    team_id: string;
+    name: string;
+    icon: string;
+    order: number;
+    created_by: string;
+    created_at: string;
+}
+
+export interface TeamPromptVersion {
+    id: string;
+    version: number;
+    title: string;
+    content: string;
+    description: string | null;
+    tags: string[];
+    modified_by: string;
+    modified_by_name: string;
+    modified_at: string;
+    change_note: string;
+}
+
+export interface TeamPromptListResponse {
+    items: TeamPrompt[];
+    total: number;
+    page: number;
+    page_size: number;
+}
+
+export const teamsApi = {
+    // 创建团队
+    create: async (data: { name: string; description?: string }): Promise<Team> => {
+        const response = await api.post<Team>('/teams', data);
+        return response.data;
+    },
+
+    // 获取我的团队列表
+    getMyTeams: async (): Promise<Team[]> => {
+        const response = await api.get<Team[]>('/teams');
+        return response.data;
+    },
+
+    // 获取团队详情
+    getById: async (teamId: string): Promise<Team> => {
+        const response = await api.get<Team>(`/teams/${teamId}`);
+        return response.data;
+    },
+
+    // 更新团队信息
+    update: async (teamId: string, data: { name?: string; description?: string }): Promise<Team> => {
+        const response = await api.put<Team>(`/teams/${teamId}`, data);
+        return response.data;
+    },
+
+    // 删除团队
+    delete: async (teamId: string): Promise<{ message: string }> => {
+        const response = await api.delete<{ message: string }>(`/teams/${teamId}`);
+        return response.data;
+    },
+
+    // 重新生成邀请码
+    regenerateInviteCode: async (teamId: string): Promise<{ invite_code: string }> => {
+        const response = await api.post<{ invite_code: string }>(`/teams/${teamId}/regenerate-code`);
+        return response.data;
+    },
+
+    // 通过邀请码加入团队
+    join: async (inviteCode: string): Promise<{ message: string; team_id: string; team_name: string }> => {
+        const response = await api.post<{ message: string; team_id: string; team_name: string }>('/teams/join', { invite_code: inviteCode });
+        return response.data;
+    },
+
+    // 获取团队成员列表
+    getMembers: async (teamId: string): Promise<TeamMember[]> => {
+        const response = await api.get<TeamMember[]>(`/teams/${teamId}/members`);
+        return response.data;
+    },
+
+    // 更新成员角色
+    updateMemberRole: async (teamId: string, userId: string, role: 'admin' | 'member'): Promise<{ message: string }> => {
+        const response = await api.put<{ message: string }>(`/teams/${teamId}/members/${userId}`, { role });
+        return response.data;
+    },
+
+    // 移除成员
+    removeMember: async (teamId: string, userId: string): Promise<{ message: string }> => {
+        const response = await api.delete<{ message: string }>(`/teams/${teamId}/members/${userId}`);
+        return response.data;
+    },
+
+    // 退出团队
+    leave: async (teamId: string): Promise<{ message: string }> => {
+        const response = await api.delete<{ message: string }>(`/teams/${teamId}/leave`);
+        return response.data;
+    },
+
+    // 共享提示词到团队
+    sharePrompt: async (teamId: string, promptId: string): Promise<{ message: string }> => {
+        const response = await api.post<{ message: string }>(`/teams/${teamId}/prompts`, { prompt_id: promptId });
+        return response.data;
+    },
+
+    // 获取团队提示词列表
+    getPrompts: async (teamId: string, params?: { search?: string; category?: string; page?: number; page_size?: number }): Promise<TeamPromptListResponse> => {
+        const response = await api.get<TeamPromptListResponse>(`/teams/${teamId}/prompts`, { params });
+        return response.data;
+    },
+
+    // 取消共享提示词
+    unsharePrompt: async (teamId: string, promptId: string): Promise<{ message: string }> => {
+        const response = await api.delete<{ message: string }>(`/teams/${teamId}/prompts/${promptId}`);
+        return response.data;
+    },
+
+    // 复制团队提示词到个人库
+    copyPromptToPersonal: async (teamId: string, promptId: string): Promise<{ message: string; prompt_id: string }> => {
+        const response = await api.post<{ message: string; prompt_id: string }>(`/teams/${teamId}/prompts/${promptId}/copy`);
+        return response.data;
+    },
+
+    // ============ 团队分类 ============
+
+    // 获取团队分类列表
+    getCategories: async (teamId: string): Promise<TeamCategory[]> => {
+        const response = await api.get<TeamCategory[]>(`/teams/${teamId}/categories`);
+        return response.data;
+    },
+
+    // 创建团队分类
+    createCategory: async (teamId: string, data: { name: string; icon?: string }): Promise<TeamCategory> => {
+        const response = await api.post<TeamCategory>(`/teams/${teamId}/categories`, data);
+        return response.data;
+    },
+
+    // 更新团队分类
+    updateCategory: async (teamId: string, categoryId: string, data: { name?: string; icon?: string; order?: number }): Promise<TeamCategory> => {
+        const response = await api.put<TeamCategory>(`/teams/${teamId}/categories/${categoryId}`, data);
+        return response.data;
+    },
+
+    // 删除团队分类
+    deleteCategory: async (teamId: string, categoryId: string): Promise<{ message: string }> => {
+        const response = await api.delete<{ message: string }>(`/teams/${teamId}/categories/${categoryId}`);
+        return response.data;
+    },
+
+    // 更新团队提示词分类
+    updatePromptCategory: async (teamId: string, promptId: string, categoryId: string | null): Promise<{ message: string }> => {
+        const response = await api.put<{ message: string }>(`/teams/${teamId}/prompts/${promptId}/category`, null, { params: { category_id: categoryId } });
+        return response.data;
+    },
+
+    // ============ 团队版本管理 ============
+
+    // 获取团队提示词版本历史
+    getPromptVersions: async (teamId: string, promptId: string): Promise<TeamPromptVersion[]> => {
+        const response = await api.get<TeamPromptVersion[]>(`/teams/${teamId}/prompts/${promptId}/versions`);
+        return response.data;
+    },
+
+    // 恢复团队提示词到指定版本
+    restorePromptVersion: async (teamId: string, promptId: string, version: number): Promise<{ message: string; new_version: number }> => {
+        const response = await api.post<{ message: string; new_version: number }>(`/teams/${teamId}/prompts/${promptId}/restore/${version}`);
+        return response.data;
+    },
+
+    // 更新团队提示词（创建新版本记录）
+    updatePrompt: async (teamId: string, promptId: string, data: { title?: string; content?: string; description?: string; change_note?: string }): Promise<{ message: string; version: number }> => {
+        const response = await api.put<{ message: string; version: number }>(`/teams/${teamId}/prompts/${promptId}`, data);
+        return response.data;
+    },
+
+    // 增加团队提示词的复制计数
+    incrementCopyCount: async (teamId: string, promptId: string): Promise<void> => {
+        await api.post(`/teams/${teamId}/prompts/${promptId}/copy`);
+    }
+};

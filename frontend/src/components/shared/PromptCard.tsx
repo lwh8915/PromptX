@@ -10,6 +10,7 @@ interface PromptCardProps {
     onDelete: () => void;
     onViewHistory?: () => void;
     onShare?: () => void;  // 分享到公共库
+    onShareToTeam?: () => void;  // 分享到团队
     viewMode?: ViewMode;
     style?: React.CSSProperties;
 }
@@ -18,7 +19,7 @@ interface PromptCardProps {
  * PromptCard - 提示词卡片/列表组件
  * 支持卡片和列表两种展示形式
  */
-export default function PromptCard({ prompt, onClick, onCopy, onEdit, onDelete, onViewHistory, onShare, viewMode = 'card', style }: PromptCardProps) {
+export default function PromptCard({ prompt, onClick, onCopy, onEdit, onDelete, onViewHistory, onShare, onShareToTeam, viewMode = 'card', style }: PromptCardProps) {
     // 列表视图
     if (viewMode === 'list') {
         return (
@@ -84,6 +85,17 @@ export default function PromptCard({ prompt, onClick, onCopy, onEdit, onDelete, 
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.368-2.684 3 3 0 00-5.368 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                                </svg>
+                            </button>
+                        )}
+                        {onShareToTeam && (
+                            <button
+                                onClick={onShareToTeam}
+                                className="btn btn-ghost p-1.5 text-[var(--text-tertiary)] hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all"
+                                title="分享到团队"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
                             </button>
                         )}
@@ -208,6 +220,19 @@ export default function PromptCard({ prompt, onClick, onCopy, onEdit, onDelete, 
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.368-2.684 3 3 0 00-5.368 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                        </svg>
+                    </button>
+                )}
+
+                {/* 分享到团队按钮 */}
+                {onShareToTeam && (
+                    <button
+                        onClick={onShareToTeam}
+                        className="btn btn-ghost p-2.5 text-[var(--text-tertiary)] hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all"
+                        title="分享到团队"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                     </button>
                 )}

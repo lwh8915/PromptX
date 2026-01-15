@@ -10,6 +10,7 @@ import PromptViewModal from '../components/shared/PromptViewModal';
 import VersionHistoryModal from '../components/shared/VersionHistoryModal';
 import VersionCompareModal from '../components/shared/VersionCompareModal';
 import Toast from '../components/ui/Toast';
+import ShareToTeamModal from '../components/shared/ShareToTeamModal';
 import type { Prompt } from '../types';
 
 type ViewMode = 'card' | 'list';
@@ -67,6 +68,9 @@ export default function Dashboard() {
     // 版本历史弹窗状态
     const [versionHistoryPrompt, setVersionHistoryPrompt] = useState<Prompt | null>(null);
     const [compareVersions, setCompareVersions] = useState<{ prompt: Prompt; v1: number; v2: number } | null>(null);
+
+    // 分享到团队弹窗状态
+    const [shareToTeamPrompt, setShareToTeamPrompt] = useState<Prompt | null>(null);
 
     // 视图模式：card 或 list，网页端默认 card，移动端默认 list
     const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -495,6 +499,7 @@ export default function Dashboard() {
                                         onDelete={() => handleDelete(prompt)}
                                         onViewHistory={() => setVersionHistoryPrompt(prompt)}
                                         onShare={() => handleShare(prompt)}
+                                        onShareToTeam={() => setShareToTeamPrompt(prompt)}
                                         style={{ animationDelay: `${index * 50}ms` }}
                                     />
                                 ))}
@@ -512,6 +517,7 @@ export default function Dashboard() {
                                         onDelete={() => handleDelete(prompt)}
                                         onViewHistory={() => setVersionHistoryPrompt(prompt)}
                                         onShare={() => handleShare(prompt)}
+                                        onShareToTeam={() => setShareToTeamPrompt(prompt)}
                                         style={{ animationDelay: `${index * 30}ms` }}
                                     />
                                 ))}
@@ -664,6 +670,19 @@ export default function Dashboard() {
                     />
                 )
             }
+
+            {/* Share to Team Modal */}
+            {shareToTeamPrompt && (
+                <ShareToTeamModal
+                    promptId={shareToTeamPrompt.id}
+                    promptTitle={shareToTeamPrompt.title}
+                    isOpen={!!shareToTeamPrompt}
+                    onClose={() => setShareToTeamPrompt(null)}
+                    onSuccess={(teamName) => {
+                        setToast({ message: `已分享到团队「${teamName}」`, type: 'success' });
+                    }}
+                />
+            )}
         </div >
     );
 }
