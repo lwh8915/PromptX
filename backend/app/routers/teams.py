@@ -558,7 +558,6 @@ async def get_team_prompts(
     await check_team_permission(team_id, current_user["id"], ["owner", "admin", "member"])
     
     team_prompts_collection = get_collection("team_prompts")
-    prompts_collection = get_collection("prompts")
     users_collection = get_collection("users")
     team_categories_collection = get_collection("team_categories")
     
@@ -566,37 +565,42 @@ async def get_team_prompts(
     team_cats = await team_categories_collection.find({"team_id": ObjectId(team_id)}).to_list(100)
     cat_map = {str(c["_id"]): c for c in team_cats}
     
-    # 获取所有团队共享的提示词ID
-    shares = await team_prompts_collection.find({"team_id": ObjectId(team_id)}).to_list(1000)
-    prompt_ids = [s["prompt_id"] for s in shares]
-    share_map = {str(s["prompt_id"]): s for s in shares}
+    # 直接从 team_prompts 表查询（不再依赖原始 prompts 表）
+    query = {"team_id": ObjectId(team_id)}
     
-    if not prompt_ids:
-        return {"items": [], "total": 0, "page": page, "page_size": page_size}
-    
-    # 构建查询
-    query = {"_id": {"$in": prompt_ids}}
+    # 搜索条件
     if search:
         query["$or"] = [
             {"title": {"$regex": search, "$options": "i"}},
             {"content": {"$regex": search, "$options": "i"}}
         ]
+    
+    # 分类筛选
     if category:
-        query["category"] = category
+        query["team_category_id"] = ObjectId(category)
     
     # 分页查询
-    total = await prompts_collection.count_documents(query)
+    total = await team_prompts_collection.count_documents(query)
     skip = (page - 1) * page_size
-    prompts = await prompts_collection.find(query).sort("updated_at", -1).skip(skip).limit(page_size).to_list(page_size)
+    shares = await team_prompts_collection.find(query).sort("shared_at", -1).skip(skip).limit(page_size).to_list(page_size)
+    
+    if not shares:
+        return {"items": [], "total": 0, "page": page, "page_size": page_size}
+    
+    # 批量获取分享者信息
+    shared_by_ids = list(set(s.get("shared_by") for s in shares if s.get("shared_by")))
+    users = await users_collection.find({"_id": {"$in": shared_by_ids}}).to_list(len(shared_by_ids))
+    user_map = {str(u["_id"]): u for u in users}
     
     # 构建响应
     items = []
-    for prompt in prompts:
-        prompt_id_str = str(prompt["_id"])
-        share_info = share_map.get(prompt_id_str, {})
+    for share_info in shares:
+        prompt_id_str = str(share_info.get("prompt_id", share_info["_id"]))
+        share_id_str = str(share_info["_id"])
         
         # 获取分享者信息
-        shared_by_user = await users_collection.find_one({"_id": share_info.get("shared_by")})
+        shared_by_id = share_info.get("shared_by")
+        shared_by_user = user_map.get(str(shared_by_id)) if shared_by_id else None
         
         # 获取团队分类名称
         team_cat_id = share_info.get("team_category_id")
@@ -607,14 +611,14 @@ async def get_team_prompts(
                 team_cat_name = cat_info.get("name")
         
         items.append({
-            "id": prompt_id_str,
-            "prompt_id": prompt_id_str,
-            "title": share_info.get("title", prompt.get("title", "")),
-            "content": share_info.get("content", prompt.get("content", "")),
-            "description": share_info.get("description", prompt.get("description")),
-            "tags": share_info.get("tags", prompt.get("tags", [])),
+            "id": share_id_str,  # 使用 share_id 作为唯一标识
+            "prompt_id": prompt_id_str,  # 原始提示词ID（可能已不存在）
+            "title": share_info.get("title", ""),
+            "content": share_info.get("content", ""),
+            "description": share_info.get("description"),
+            "tags": share_info.get("tags", []),
             "category": team_cat_name,
-            "shared_by": str(share_info.get("shared_by", "")),
+            "shared_by": str(shared_by_id) if shared_by_id else "",
             "shared_by_name": shared_by_user.get("username", "") if shared_by_user else "",
             "shared_at": share_info.get("shared_at", datetime.utcnow()),
             "version_count": share_info.get("version_count", 1),

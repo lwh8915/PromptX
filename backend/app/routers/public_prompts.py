@@ -383,6 +383,7 @@ async def download_to_personal(
         "is_favorite": False,
         "copy_count": 0,
         "current_version": 1,
+        "version_count": 1,  # 初始版本数
         "created_at": now,
         "updated_at": now
     }

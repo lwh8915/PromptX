@@ -55,7 +55,7 @@ export default function PromptViewModal({ prompt, onClose, onEdit, onCopy, onCon
                         </div>
 
                         {/* Tags */}
-                        {prompt.tags.length > 0 && (
+                        {prompt.tags?.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 {prompt.tags.map((tag, index) => (
                                     <span

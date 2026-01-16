@@ -132,7 +132,7 @@ export default function PromptCard({ prompt, onClick, onCopy, onEdit, onDelete, 
             </div>
 
             {/* Tags */}
-            {prompt.tags.length > 0 && (
+            {prompt.tags?.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-3">
                     {prompt.tags.slice(0, 3).map((tag, index) => (
                         <span

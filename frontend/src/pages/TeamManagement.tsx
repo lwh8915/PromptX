@@ -121,8 +121,10 @@ export default function TeamManagement() {
 
     useEffect(() => {
         if (selectedTeam) {
+            // 切换团队时重置分类筛选为"全部"
+            setSelectedCategoryId(undefined);
             loadMembers(selectedTeam.id);
-            loadPrompts(selectedTeam.id, 1, selectedCategoryId);
+            loadPrompts(selectedTeam.id, 1, undefined); // 使用 undefined 而不是 selectedCategoryId
             loadCategories(selectedTeam.id);
         }
     }, [selectedTeam?.id]);
@@ -269,7 +271,7 @@ export default function TeamManagement() {
     // 选择分类筛选
     const handleSelectCategory = (categoryId: string | null | 'all') => {
         if (categoryId === 'all') {
-            setSelectedCategoryId(null);
+            setSelectedCategoryId(undefined);
             if (selectedTeam) loadPrompts(selectedTeam.id, 1, undefined);
         } else {
             setSelectedCategoryId(categoryId);
@@ -534,7 +536,7 @@ export default function TeamManagement() {
                                     <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
                                         <button
                                             onClick={() => handleSelectCategory('all')}
-                                            className={`px-3 py-1.5 text-sm rounded-lg whitespace-nowrap transition-colors ${selectedCategoryId === null
+                                            className={`px-3 py-1.5 text-sm rounded-lg whitespace-nowrap transition-colors ${selectedCategoryId === undefined
                                                 ? 'bg-[var(--primary-500)] text-white'
                                                 : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
                                                 }`}
