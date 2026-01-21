@@ -23,6 +23,12 @@
 
 > **PromptX** 不仅仅是一个提示词存储工具，它是专为 AI 时代打造的生产力神器。采用 **UI/UX Pro Max** 设计标准，结合强大的 **版本管理** 和 **智能分类**，让你的 AI 工作流效率提升 10x。
 
+## 项目概要图
+<div align="center">
+  <img src="promptx_imgs/summary.png" alt="功能概要图" width="800"/>
+  <p><em>项目概要图：版本管理、AI润色、公共知识库、评论互动等</em></p>
+</div>
+
 ## 项目架构
 
 ```
