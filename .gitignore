@@ -28,6 +28,8 @@ backend/.env
 backend/.coverage
 backend/htmlcov/
 backend/.pytest_cache/
+**/__pycache__/
+*.pyc
 
 # Docker
 .env

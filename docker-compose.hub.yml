@@ -10,6 +10,8 @@ services:
       # MongoDB 配置（请创建 .env 文件配置或直接在此处填写）
       - MONGODB_URL=${MONGODB_URL}
       - MONGODB_DB_NAME=${MONGODB_DB_NAME:-PromptX}
+      # 应用版本号（可选，用于自定义展示的版本号）
+      - APP_VERSION=${APP_VERSION:-1.0.0}
 
       # SMTP 配置（可选）
       - SMTP_HOST=${SMTP_HOST:-smtp.qq.com}

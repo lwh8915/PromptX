@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { versionApi } from '../api/client';
 import ShowcaseCarousel from '../components/landing/ShowcaseCarousel';
 
 /**
@@ -6,6 +8,19 @@ import ShowcaseCarousel from '../components/landing/ShowcaseCarousel';
  * UI UX Pro Max: 极致现代感、玻璃态设计、丰富微交互
  */
 export default function Landing() {
+    // 应用版本号，获取失败时保持为 null（不显示）
+    const [version, setVersion] = useState<string | null>(null);
+
+    // 页面加载时获取应用版本号，失败时静默忽略
+    useEffect(() => {
+        versionApi
+            .getVersion()
+            .then((res) => setVersion(res.version))
+            .catch(() => {
+                // 请求失败时静默不显示版本号
+            });
+    }, []);
+
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] overflow-hidden">
             {/* 背景光效 */}
@@ -169,9 +184,16 @@ export default function Landing() {
             {/* 页脚 */}
             <footer className="relative z-10 border-t border-[var(--border-secondary)] mt-20 py-8 px-6 md:px-12">
                 <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-                    <p className="text-sm text-[var(--text-tertiary)]">
-                        © 2024 Prompt Manager. All rights reserved.
-                    </p>
+                    <div className="flex items-center gap-3">
+                        <p className="text-sm text-[var(--text-tertiary)]">
+                            © 2024 Prompt Manager. All rights reserved.
+                        </p>
+                        {version && (
+                            <span className="px-2 py-0.5 text-xs text-[var(--text-secondary)] bg-[var(--bg-glass)] border border-[var(--border-secondary)] rounded-full">
+                                v{version}
+                            </span>
+                        )}
+                    </div>
                     <div className="flex items-center gap-6">
                         <a href="#" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors">
                             隐私政策

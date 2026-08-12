@@ -235,6 +235,11 @@ python delete_test_data.py
   <p><em>安全的注册流程，包含安全问题设置</em></p>
 </div>
 
+<div align="center">
+  <img src="promptx_imgs/banbenzhanshi.png" alt="应用版本号展示" width="800"/>
+  <p><em>落地页页脚展示应用版本号徽标</em></p>
+</div>
+
 **首页** 采用深色玻璃态风格，醒目展示产品定位和核心价值。**登录/注册** 页面设计简洁优雅，支持用户名或邮箱登录，并提供安全问题验证机制。
 
 ---
@@ -465,6 +470,8 @@ SMTP_PASSWORD=16位授权码
 - 完美响应式布局
 
 ## Docker 部署
+
+> 💡 **可选配置**：可在 `.env` 中设置 `APP_VERSION` 环境变量（默认 `1.0.0`），用于自定义应用展示的版本号。
 
 ### 方式一：直接运行（推荐）
 

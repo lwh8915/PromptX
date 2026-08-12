@@ -1,6 +1,8 @@
 """
 管理员用户管理脚本
 
+版本说明: 启动时会展示当前应用版本号（可通过 APP_VERSION 环境变量自定义）。
+
 用法:
   python create_admin.py                  # 交互式创建/设置管理员
   python create_admin.py --email xxx      # 将指定邮箱用户设为管理员
@@ -18,6 +20,9 @@ import getpass
 
 # 加载 .env 文件
 load_dotenv()
+
+# 应用版本号（可通过环境变量 APP_VERSION 自定义）
+APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
 
 # 密码加密上下文 (与 auth.py 保持一致)
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
@@ -174,6 +179,7 @@ async def interactive_mode():
     """交互式模式"""
     print("\n" + "="*50)
     print("  PromptX 管理员管理工具")
+    print(f"  版本号: v{APP_VERSION}")
     print("="*50)
     print("\n请选择操作:")
     print("  1. 将现有用户设为管理员")

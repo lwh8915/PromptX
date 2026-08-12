@@ -54,6 +54,15 @@ api.interceptors.response.use(
     }
 );
 
+// ============ 版本 API ============
+export const versionApi = {
+    // 获取应用版本号
+    getVersion: async (): Promise<{ app: string; version: string }> => {
+        const response = await api.get<{ app: string; version: string }>('/version');
+        return response.data;
+    },
+};
+
 // ============ 认证 API ============
 export const authApi = {
     // 注册

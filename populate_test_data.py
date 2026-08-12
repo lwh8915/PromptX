@@ -1,6 +1,8 @@
 """
 批量创建测试数据脚本
 
+脚本启动时会尝试获取并打印服务端应用版本号，获取失败不影响主流程。
+
 用法:
   1. 设置环境变量:
      export PROMPTX_USERNAME=your_username
@@ -123,7 +125,18 @@ def create_prompts(token, category_id):
         except Exception as e:
             print(f"Error creating {title}: {e}")
 
+def show_server_version():
+    """尝试获取并打印服务端应用版本号，失败时降级继续主流程"""
+    try:
+        resp = requests.get(f"{BASE_URL}/version", timeout=5)
+        resp.raise_for_status()
+        info = resp.json()
+        print(f"服务端应用: {info.get('app')} v{info.get('version')}")
+    except Exception as e:
+        print(f"获取服务端版本失败（忽略并继续）: {e}")
+
 if __name__ == "__main__":
+    show_server_version()
     token = login()
     cat_id = get_gemini_category_id(token)
     create_prompts(token, cat_id)

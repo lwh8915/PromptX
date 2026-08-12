@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     
     # 应用配置
     app_name: str = "Prompt Manager"
+    app_version: str = "1.0.0"
     debug: bool = False
     
     # SMTP 邮件配置

@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     description="提示词管理工具 API - 为 Web/Desktop/Mobile App 提供统一后端",
-    version="1.0.0",
+    version=settings.app_version,
     lifespan=lifespan,
 )
 
@@ -75,3 +75,9 @@ async def root():
 async def health_check():
     """健康检查"""
     return {"status": "healthy"}
+
+
+@app.get("/api/version")
+async def get_version():
+    """获取应用版本号"""
+    return {"app": settings.app_name, "version": settings.app_version}
